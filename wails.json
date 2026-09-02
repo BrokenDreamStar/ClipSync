@@ -1,0 +1,23 @@
+{
+  "$schema": "https://wails.io/schemas/config.v2.json",
+  "name": "clipsync",
+  "outputfilename": "clipsync",
+  "frontend:install": "npm install",
+  "frontend:build": "npm run build",
+  "frontend:dev:watcher": "npm run dev",
+  "frontend:dev:serverUrl": "auto",
+  "wailsjsdir": "./frontend/src",
+  "version": "0.0.1",
+  "author": {
+    "name": "ClipSync Dev"
+  },
+  "info": {
+    "productName": "ClipSync",
+    "productVersion": "0.0.1",
+    "copyright": "",
+    "comments": "\u5c40\u57df\u7f51\u526a\u8d34\u677f\u540c\u6b65\u5de5\u5177"
+  },
+  "postBuildHooks": {
+    "darwin/arm64": "sh ../../build/darwin/build_icns.sh"
+  }
+}

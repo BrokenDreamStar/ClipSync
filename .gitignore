@@ -1,0 +1,16 @@
+# 构建产物不入仓
+dist/
+.DS_Store
+build_icons/
+build/bin/
+build/windows/installer/tmp/
+node_modules/
+trayhelper/Resources/trayhelper
+
+# 本地备份
+.icon_backup/
+wails.json.bak
+
+# IDE 与 ZCode 客户端的本地配置
+.idea/
+.zcode/
