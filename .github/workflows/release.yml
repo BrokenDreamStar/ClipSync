@@ -91,11 +91,17 @@ jobs:
       - name: 构建 Windows amd64
         run: wails build -platform windows/amd64
 
+      - name: 重命名产物 (带版本号)
+        shell: bash
+        run: |
+          VERSION="$(jq -r .version wails.json)"
+          mv build/bin/clipsync.exe "build/bin/clipsync-${VERSION}-windows-amd64.exe"
+
       - name: 上传 EXE 产物
         uses: actions/upload-artifact@v4
         with:
           name: clipsync-windows
-          path: build/bin/clipsync.exe
+          path: build/bin/clipsync-*-windows-amd64.exe
           if-no-files-found: error
 
   release:
