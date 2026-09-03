@@ -46,19 +46,19 @@ jobs:
           set -euo pipefail
           VERSION="$(jq -r .version wails.json)"
           STAGE="$(mktemp -d)"
-          cp -R "build/bin/clipsync.app" "$STAGE/"
+          cp -R "build/bin/ClipSync.app" "$STAGE/"
           ln -s /Applications "$STAGE/Applications"
           hdiutil create \
             -volname "ClipSync" \
             -srcfolder "$STAGE" \
             -ov \
             -format UDZO \
-            "build/bin/clipsync-${VERSION}-macos-universal.dmg"
+            "build/bin/ClipSync-${VERSION}-macos-universal.dmg"
 
       - name: 上传 DMG 产物
         uses: actions/upload-artifact@v4
         with:
-          name: clipsync-macos
+          name: ClipSync-macos
           path: build/bin/*.dmg
           if-no-files-found: error
 
@@ -95,13 +95,13 @@ jobs:
         shell: bash
         run: |
           VERSION="$(jq -r .version wails.json)"
-          mv build/bin/clipsync.exe "build/bin/clipsync-${VERSION}-windows-amd64.exe"
+          mv build/bin/ClipSync.exe "build/bin/ClipSync-${VERSION}-windows-amd64.exe"
 
       - name: 上传 EXE 产物
         uses: actions/upload-artifact@v4
         with:
-          name: clipsync-windows
-          path: build/bin/clipsync-*-windows-amd64.exe
+          name: ClipSync-windows
+          path: build/bin/ClipSync-*-windows-amd64.exe
           if-no-files-found: error
 
   release:

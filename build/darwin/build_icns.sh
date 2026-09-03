@@ -12,7 +12,7 @@ set -euo pipefail
 SELF="${BASH_SOURCE[0]:-$0}"
 ROOT="$(cd "$(dirname "$SELF")/../.." && pwd)"
 SRC="${ROOT}/build/appicon.png"
-OUT="${ROOT}/build/bin/clipsync.app/Contents/Resources/iconfile.icns"
+OUT="${ROOT}/build/bin/ClipSync.app/Contents/Resources/iconfile.icns"
 
 if [[ ! -f "$SRC" ]]; then
   echo "[build_icns] 未找到 $SRC,跳过。" >&2
@@ -23,7 +23,7 @@ if [[ ! -f "$OUT" ]]; then
   exit 0
 fi
 
-WORK="$(mktemp -d)/clipsync.iconset"
+WORK="$(mktemp -d)/ClipSync.iconset"
 mkdir -p "$WORK"
 
 # @1x (Finder 默认显示必需)

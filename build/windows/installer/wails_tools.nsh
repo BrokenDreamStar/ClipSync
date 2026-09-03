@@ -5,16 +5,16 @@
 !include "FileFunc.nsh"
 
 !ifndef INFO_PROJECTNAME
-    !define INFO_PROJECTNAME "clipsync"
+    !define INFO_PROJECTNAME "ClipSync"
 !endif
 !ifndef INFO_COMPANYNAME
-    !define INFO_COMPANYNAME "clipsync"
+    !define INFO_COMPANYNAME "BrokenDream_Star"
 !endif
 !ifndef INFO_PRODUCTNAME
     !define INFO_PRODUCTNAME "ClipSync"
 !endif
 !ifndef INFO_PRODUCTVERSION
-    !define INFO_PRODUCTVERSION "0.2.0"
+    !define INFO_PRODUCTVERSION "0.0.3"
 !endif
 !ifndef INFO_COPYRIGHT
     !define INFO_COPYRIGHT ""
