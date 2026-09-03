@@ -476,6 +476,28 @@ func (e *Engine) SaveConfig(name string, port int) error {
 	return nil
 }
 
+// ValidTheme 判断主题偏好取值是否合法（dark / light / system）。
+func ValidTheme(t string) bool {
+	switch t {
+	case "dark", "light", "system":
+		return true
+	}
+	return false
+}
+
+// SetTheme 更新界面主题偏好并持久化（即时生效，无需重启）。
+func (e *Engine) SetTheme(theme string) error {
+	if !ValidTheme(theme) {
+		return fmt.Errorf("未知主题: %s", theme)
+	}
+	e.cfg.Theme = theme
+	if err := e.cfg.Save(e.cfgPath); err != nil {
+		return err
+	}
+	e.publish(TopicConfig)
+	return nil
+}
+
 // onPeerConnected 在握手成功后由 Hub 回调，更新对端↔真实远端 IP。
 func (e *Engine) onPeerConnected(name, deviceID, host string) {
 	if p := e.cfg.PeerByID(deviceID); p != nil {

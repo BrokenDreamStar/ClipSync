@@ -99,6 +99,7 @@ export namespace main {
 	    name: string;
 	    port: number;
 	    device_id: string;
+	    theme: string;
 	    peers: PeerView[];
 	
 	    static createFrom(source: any = {}) {
@@ -110,6 +111,7 @@ export namespace main {
 	        this.name = source["name"];
 	        this.port = source["port"];
 	        this.device_id = source["device_id"];
+	        this.theme = source["theme"];
 	        this.peers = this.convertValues(source["peers"], PeerView);
 	    }
 	

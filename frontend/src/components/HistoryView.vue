@@ -91,7 +91,7 @@ async function onCopy(item: HistoryItem) {
     <!-- 空状态 -->
     <div v-if="state.history.value.length === 0" class="py-24 text-center">
       <div
-        class="mx-auto w-12 h-12 rounded-2xl bg-white/[0.04] inline-flex items-center justify-center text-muted mb-4"
+        class="mx-auto w-12 h-12 rounded-2xl bg-overlay inline-flex items-center justify-center text-muted mb-4"
       >
         <Icon name="clipboard" :size="22" />
       </div>
@@ -107,7 +107,7 @@ async function onCopy(item: HistoryItem) {
         class="group flex items-center gap-4 py-3.5"
       >
         <div
-          class="shrink-0 w-12 h-12 rounded-xl bg-white/[0.04] flex items-center justify-center overflow-hidden text-muted"
+          class="shrink-0 w-12 h-12 rounded-xl bg-overlay flex items-center justify-center overflow-hidden text-muted"
         >
           <img
             v-if="item.kind === 'image' && imageUrls[item.id]"

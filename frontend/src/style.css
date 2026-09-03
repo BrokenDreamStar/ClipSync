@@ -2,13 +2,71 @@
 @tailwind components;
 @tailwind utilities;
 
-:root {
+/* ---- 主题变量 ----
+   默认（:root 与 html.dark）为深色；html.light 覆盖为浅色。
+   html 上的 dark/light class 由 index.html 内联脚本（首帧）与 useTheme（运行时）写入。
+   核心色以 RGB 三元组形式定义，供 tailwind 的 <alpha-value> 透明度修饰符使用。 */
+:root,
+html.dark {
   color-scheme: dark;
+
+  --c-bg-rgb: 36 35 33;        /* #242321 */
+  --c-surface-rgb: 46 45 43;   /* #2E2D2B */
+  --c-elevated-rgb: 58 57 54;  /* #3A3936 */
+  --c-border-rgb: 60 59 56;    /* #3C3B38 */
+  --c-text-rgb: 233 231 226;   /* #E9E7E2 */
+  --c-muted-rgb: 142 140 135;  /* #8E8C87 */
+  --c-accent-rgb: 45 212 191;  /* #2DD4BF */
+  --c-accent-hover-rgb: 94 234 212;  /* #5EEAD4 */
+  --c-accent-2-rgb: 129 140 248;     /* #818CF8 */
+  --c-success-rgb: 52 211 153; /* #34D399 */
+  --c-danger-rgb: 248 113 113; /* #F87171 */
+  --c-warning-rgb: 251 191 36; /* #FBBF24 */
+
+  --c-scrim: rgba(0, 0, 0, 0.55);
+  --c-line: rgba(255, 255, 255, 0.1);
+  --c-hairline: rgba(255, 255, 255, 0.06);
+  --c-overlay: rgba(255, 255, 255, 0.05);
+  --c-overlay-soft: rgba(255, 255, 255, 0.03);
+  --c-overlay-hover: rgba(255, 255, 255, 0.09);
+  --c-overlay-strong: rgba(255, 255, 255, 0.1);
+
+  --shadow-card: 0 1px 0 rgba(255, 255, 255, 0.03) inset, 0 10px 34px rgba(0, 0, 0, 0.38);
+  --shadow-pop: 0 12px 44px rgba(0, 0, 0, 0.52);
+}
+
+html.light {
+  color-scheme: light;
+
+  --c-bg-rgb: 241 240 237;        /* #F1F0ED */
+  --c-surface-rgb: 250 250 248;   /* #FAFAF8 */
+  --c-elevated-rgb: 255 255 255;  /* #FFFFFF */
+  --c-border-rgb: 226 224 219;    /* #E2E0DB */
+  --c-text-rgb: 43 42 38;         /* #2B2A26 */
+  --c-muted-rgb: 122 120 112;     /* #7A7870 */
+  --c-accent-rgb: 13 148 136;     /* #0D9488（浅色下加深保证对比度） */
+  --c-accent-hover-rgb: 20 184 166; /* #14B8A6 */
+  --c-accent-2-rgb: 99 102 241;   /* #6366F1 */
+  --c-success-rgb: 16 185 129;    /* #10B981 */
+  --c-danger-rgb: 239 68 68;      /* #EF4444 */
+  --c-warning-rgb: 217 119 6;     /* #D97706 */
+
+  --c-scrim: rgba(15, 15, 13, 0.4);
+  --c-line: rgba(28, 27, 24, 0.12);
+  --c-hairline: rgba(28, 27, 24, 0.07);
+  --c-overlay: rgba(28, 27, 24, 0.06);
+  --c-overlay-soft: rgba(28, 27, 24, 0.04);
+  --c-overlay-hover: rgba(28, 27, 24, 0.09);
+  --c-overlay-strong: rgba(28, 27, 24, 0.1);
+
+  --shadow-card: 0 1px 2px rgba(28, 27, 24, 0.05), 0 10px 30px rgba(28, 27, 24, 0.08);
+  --shadow-pop: 0 12px 40px rgba(28, 27, 24, 0.18);
+}
+
+:root {
   font-family: 'PingFang SC', 'Microsoft YaHei UI', 'Helvetica Neue', system-ui, sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  --accent: #2dd4bf;
-  --accent-2: #818cf8;
 }
 
 html,
@@ -19,8 +77,8 @@ body,
 }
 
 body {
-  color: #e9e7e2;
-  background-color: #242321;
+  color: rgb(var(--c-text-rgb));
+  background-color: rgb(var(--c-bg-rgb));
   font-size: 14px;
   overflow: hidden;
 }
@@ -77,7 +135,7 @@ body {
   }
 
   .input {
-    @apply w-full bg-elevated/60 border border-white/10 rounded-xl px-3.5 h-10 text-text text-sm
+    @apply w-full bg-elevated/60 border border-line rounded-xl px-3.5 h-10 text-text text-sm
       placeholder:text-muted/55
       focus:outline-none focus:border-accent/50 focus:ring-2 focus:ring-accent/15 transition;
   }
@@ -105,10 +163,10 @@ body {
 
   .btn-ghost {
     @apply text-text;
-    background: rgba(255, 255, 255, 0.05);
+    background: var(--c-overlay);
   }
   .btn-ghost:hover {
-    background: rgba(255, 255, 255, 0.09);
+    background: var(--c-overlay-hover);
     transform: translateY(-1px);
   }
 
@@ -124,7 +182,7 @@ body {
 
   .btn-icon {
     @apply w-8 h-8 p-0 rounded-lg items-center justify-center inline-flex text-muted
-      hover:text-text hover:bg-white/10 transition cursor-pointer;
+      hover:text-text hover:bg-overlay-strong transition cursor-pointer;
   }
 
   /* ---- 徽标 ---- */
@@ -143,8 +201,8 @@ body {
   }
   .pill-muted {
     @apply text-muted;
-    background: rgba(255, 255, 255, 0.04);
-    border-color: rgba(255, 255, 255, 0.08);
+    background: var(--c-overlay-soft);
+    border-color: var(--c-hairline);
   }
   .pill-accent {
     @apply text-accent;
@@ -153,7 +211,7 @@ body {
   }
 
   .divider {
-    @apply border-t border-white/[0.06];
+    @apply border-t border-hairline;
   }
 
   .brand-mark {

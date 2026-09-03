@@ -49,6 +49,7 @@ type ConfigView struct {
 	Name     string     `json:"name"`
 	Port     int        `json:"port"`
 	DeviceID string     `json:"device_id"`
+	Theme    string     `json:"theme"`
 	Peers    []PeerView `json:"peers"`
 }
 
@@ -68,12 +69,36 @@ func (a *App) GetConfig() (ConfigView, string) {
 		Name:     cfg.Name,
 		Port:     cfg.Port,
 		DeviceID: cfg.DeviceID,
+		Theme:    cfg.Theme,
 		Peers:    peerViews(cfg),
 	}, ""
 }
 
 func (a *App) SaveConfig(name string, port int) string {
 	return errStr(a.engine.SaveConfig(name, port))
+}
+
+// ---- 外观 / 自启 ----
+
+// SetTheme 保存界面主题偏好（dark / light / system），并同步原生窗口外观与背景色。
+func (a *App) SetTheme(theme string) string {
+	if err := a.engine.SetTheme(theme); err != nil {
+		return err.Error()
+	}
+	applyAppearance(theme)
+	r, g, b := backgroundColorFor(theme)
+	runtime.WindowSetBackgroundColour(a.ctx, r, g, b, 1)
+	return ""
+}
+
+// GetAutostart 返回当前是否已开启开机自启（以系统设置为准）。
+func (a *App) GetAutostart() bool {
+	return autostartEnabled()
+}
+
+// SetAutostart 开启/关闭开机自启：macOS 写 LaunchAgent，Windows 写注册表 Run 键。
+func (a *App) SetAutostart(enable bool) string {
+	return errStr(setAutostart(enable))
 }
 
 // ---- 对端 ----

@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#242321" />
+    <title>ClipSync (mock)</title>
+    <script>
+      // 首帧抢先应用主题（useTheme 启动后会接管并同步 localStorage）：
+      // 避免浅色主题用户在 Vue 挂载前看到深色默认变量造成的闪烁。
+      try {
+        var t = localStorage.getItem('clipsync-theme') || 'dark'
+        var dark = t === 'dark' || (t === 'system' && matchMedia('(prefers-color-scheme: dark)').matches)
+        document.documentElement.classList.add(dark ? 'dark' : 'light')
+      } catch (e) {
+        document.documentElement.classList.add('dark')
+      }
+    </script>
+  </head>
+  <body>
+    <div id="app"></div>
+    <script>
+      // 仅用于浏览器里做 UI 调试的 Wails 绑定 mock（真实应用由 Wails 注入）。
+      // 访问 /mock.html 即可在无后端的情况下预览界面与主题。
+      window.go = {
+        main: {
+          App: {
+            // 模拟后端配置：主题取上次偏好，GetConfig 返回它。
+            __cfg: { name: 'ui-test', port: 9250, device_id: 'MOCKDEVICE0000000000000000000000', theme: localStorage.getItem('clipsync-theme') || 'dark', peers: [] },
+            GetConfig: async () => window.go.main.App.__cfg,
+            GetPeers: async () => [],
+            GetDiscovered: async () => [],
+            GetConnectedPeers: async () => [],
+            GetHistory: async () => [],
+            GetHistoryData: async () => '',
+            GetPairRequests: async () => [],
+            GetAutostart: async () => false,
+            SetAutostart: async () => '',
+            SetTheme: async (t) => { window.go.main.App.__cfg.theme = t; return ''; },
+            SaveConfig: async () => '',
+            CopyLocal: async () => '',
+            IsAddrOnline: async () => false,
+            IsPairedByName: async () => false,
+            ScanNow: async () => {},
+            ShowMainWindow: async () => {},
+            Quit: async () => {},
+            RemovePeer: async () => '',
+            RemovePeerByName: async () => '',
+            RespondPairRequest: async () => '',
+            PairWith: async () => ({ id: '', name: '', addr: '' }),
+            PairDiscovered: async () => ({ id: '', name: '', addr: '' }),
+          },
+        },
+      }
+      window.runtime = {
+        EventsOn: () => {},
+        EventsOnMultiple: () => {},
+        EventsOff: () => {},
+        EventsEmit: () => {},
+        BrowserOpenURL: () => {},
+      }
+    </script>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

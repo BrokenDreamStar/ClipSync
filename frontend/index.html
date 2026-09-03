@@ -5,6 +5,17 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="theme-color" content="#242321" />
     <title>ClipSync</title>
+    <script>
+      // 首帧抢先应用主题（useTheme 启动后会接管并同步 localStorage）：
+      // 避免浅色主题用户在 Vue 挂载前看到深色默认变量造成的闪烁。
+      try {
+        var t = localStorage.getItem('clipsync-theme') || 'dark'
+        var dark = t === 'dark' || (t === 'system' && matchMedia('(prefers-color-scheme: dark)').matches)
+        document.documentElement.classList.add(dark ? 'dark' : 'light')
+      } catch (e) {
+        document.documentElement.classList.add('dark')
+      }
+    </script>
   </head>
   <body>
     <div id="app"></div>

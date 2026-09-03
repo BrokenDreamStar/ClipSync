@@ -84,6 +84,7 @@ func main() {
 
 	app := NewApp(nil, eng)
 
+	bgR, bgG, bgB := backgroundColorFor(cfg.Theme)
 	err = wails.Run(&options.App{
 		Title:  "ClipSync",
 		Width:  880,
@@ -91,8 +92,8 @@ func main() {
 		AssetServer: &assetserver.Options{
 			Assets: assets,
 		},
-			BackgroundColour: &options.RGBA{R: 0x24, G: 0x23, B: 0x21, A: 1},
-OnStartup: func(ctx context.Context) {
+		BackgroundColour: &options.RGBA{R: bgR, G: bgG, B: bgB, A: 1},
+		OnStartup: func(ctx context.Context) {
 			app.ctx = ctx
 			app.subscribe()
 			// macOS 上安装自定义 NSStatusItem 托盘（避免与 Wails AppDelegate 冲突）。
@@ -109,26 +110,29 @@ OnStartup: func(ctx context.Context) {
 			}
 		},
 		Bind: []interface{}{app},
-			Mac: &mac.Options{
-				TitleBar:   mac.TitleBarHidden(),
-				Appearance: mac.NSAppearanceNameDarkAqua,
+		Mac: &mac.Options{
+			TitleBar:   mac.TitleBarHidden(),
+			Appearance: macAppearance(cfg.Theme),
 			About: &mac.AboutInfo{
 				Title:   "ClipSync",
 				Message: "局域网 macOS ↔ Windows 剪贴板同步工具",
 			},
 		},
-		Windows: &windows.Options{},
-			// 全平台开启 HideWindowOnClose：红钮/Cmd+W/窗口关闭按钮都只触发
-			// "隐藏窗口",不结束应用。彻底退出走菜单栏托盘的"退出"菜单,
-			// 它会调用 app.Quit → runtime.Quit → 走到下面的 OnBeforeClose。
-			HideWindowOnClose: true,
-			OnBeforeClose: func(ctx context.Context) (prevent bool) {
-				// 这里只会被"真正的退出请求"触发（Cmd+Q / 托盘退出 /
-				// 应用菜单 Quit）。红钮在 HideWindowOnClose=true 时已被
-				// windowShouldClose: 拦截成 [NSApp hide:nil],不会到这一步。
-				// 放行,让 wails.Run 走完清理流程。
-				return false
-			},
+		Windows: &windows.Options{
+			// "system" 跟随系统深浅色；native 标题栏颜色随之切换。
+			Theme: windowsTheme(cfg.Theme),
+		},
+		// 全平台开启 HideWindowOnClose：红钮/Cmd+W/窗口关闭按钮都只触发
+		// "隐藏窗口",不结束应用。彻底退出走菜单栏托盘的"退出"菜单,
+		// 它会调用 app.Quit → runtime.Quit → 走到下面的 OnBeforeClose。
+		HideWindowOnClose: true,
+		OnBeforeClose: func(ctx context.Context) (prevent bool) {
+			// 这里只会被"真正的退出请求"触发（Cmd+Q / 托盘退出 /
+			// 应用菜单 Quit）。红钮在 HideWindowOnClose=true 时已被
+			// windowShouldClose: 拦截成 [NSApp hide:nil],不会到这一步。
+			// 放行,让 wails.Run 走完清理流程。
+			return false
+		},
 	})
 	if err != nil {
 		eng.Stop()
@@ -143,6 +147,53 @@ OnStartup: func(ctx context.Context) {
 // onTrayReady 已删除，改用 StartTray。
 
 // isConsole / openWindowsLogFile 保留 Windows 帮助函数。
+
+// ---- 主题解析 ----
+
+// effectiveDark 把主题偏好解析为「当前是否深色」；"system" 依据系统实时外观。
+func effectiveDark(theme string) bool {
+	switch theme {
+	case "light":
+		return false
+	case "system":
+		return systemPrefersDark()
+	default:
+		return true
+	}
+}
+
+// backgroundColorFor 返回主题对应的原生窗口背景色（与前端 --c-surface 一致），
+// 避免浅色主题下窗口加载/拉伸时露出深色底。
+func backgroundColorFor(theme string) (r, g, b uint8) {
+	if effectiveDark(theme) {
+		return 0x24, 0x23, 0x21
+	}
+	return 0xFA, 0xFA, 0xF8
+}
+
+// macAppearance 返回 macOS NSAppearance；"system" 返回默认值让窗口跟随系统外观。
+func macAppearance(theme string) mac.AppearanceType {
+	switch theme {
+	case "light":
+		return mac.NSAppearanceNameAqua
+	case "dark":
+		return mac.NSAppearanceNameDarkAqua
+	default:
+		return mac.DefaultAppearance
+	}
+}
+
+// windowsTheme 返回 Windows 原生窗口主题（标题栏颜色）；"system" 跟随系统。
+func windowsTheme(theme string) windows.Theme {
+	switch theme {
+	case "light":
+		return windows.Light
+	case "dark":
+		return windows.Dark
+	default:
+		return windows.SystemDefault
+	}
+}
 
 func isConsole() bool {
 	return getConsoleWindow() != 0

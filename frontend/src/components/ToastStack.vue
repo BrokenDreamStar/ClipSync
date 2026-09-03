@@ -31,12 +31,12 @@ const iconFor = (kind: string) => (kind === 'success' ? 'check-circle' : kind ==
   gap: 10px;
   padding: 11px 14px;
   border-radius: 12px;
-  background: rgba(18, 21, 31, 0.92);
+  background: rgb(var(--c-elevated-rgb) / 0.95);
   -webkit-backdrop-filter: blur(14px);
   backdrop-filter: blur(14px);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.5);
-  color: #eaedf4;
+  border: 1px solid var(--c-hairline);
+  box-shadow: var(--shadow-pop);
+  color: rgb(var(--c-text-rgb));
   text-align: left;
 }
 .toast-icon {

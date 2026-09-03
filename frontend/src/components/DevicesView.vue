@@ -143,7 +143,7 @@ async function confirmRemove() {
         <li
           v-for="r in sortedPairRequests"
           :key="r.device_id"
-          class="flex items-center gap-3 py-3 border-t border-white/[0.04]"
+          class="flex items-center gap-3 py-3 border-t border-hairline"
         >
           <div class="flex-1 min-w-0">
             <div class="flex items-center gap-2.5">
@@ -167,7 +167,7 @@ async function confirmRemove() {
 
       <div v-if="sortedDiscovered.length === 0" class="py-8 text-center">
         <div
-          class="mx-auto w-10 h-10 rounded-xl bg-white/[0.04] inline-flex items-center justify-center text-muted mb-3"
+          class="mx-auto w-10 h-10 rounded-xl bg-overlay inline-flex items-center justify-center text-muted mb-3"
         >
           <Icon name="radar" :size="18" />
         </div>
@@ -203,7 +203,7 @@ async function confirmRemove() {
 
       <div v-if="sortedPeers.length === 0" class="py-16 text-center">
         <div
-          class="mx-auto w-12 h-12 rounded-2xl bg-white/[0.04] inline-flex items-center justify-center text-muted mb-4"
+          class="mx-auto w-12 h-12 rounded-2xl bg-overlay inline-flex items-center justify-center text-muted mb-4"
         >
           <Icon name="link" :size="22" />
         </div>
@@ -219,7 +219,7 @@ async function confirmRemove() {
         >
           <div class="flex items-center gap-3 min-w-0">
             <div
-              class="w-10 h-10 rounded-xl bg-white/[0.04] inline-flex items-center justify-center text-muted shrink-0"
+              class="w-10 h-10 rounded-xl bg-overlay inline-flex items-center justify-center text-muted shrink-0"
             >
               <Icon name="monitor" :size="17" />
             </div>
