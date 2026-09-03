@@ -31,6 +31,7 @@ type Config struct {
 	Port     int    `json:"port"`      // 同步监听端口
 	WebPort  int    `json:"web_port"`  // 管理界面端口（仅本机访问）
 	DeviceID string `json:"device_id"` // 本机唯一身份，首次启动生成后不变
+	Theme    string `json:"theme"`     // 界面主题偏好："dark" / "light" / "system"
 	Peers    []Peer `json:"peers"`     // 已配对对端列表
 }
 
@@ -51,6 +52,7 @@ func defaultConfig() *Config {
 		Port:     9250,
 		WebPort:  9260,
 		DeviceID: newID(),
+		Theme:    "dark",
 	}
 }
 
@@ -96,6 +98,7 @@ func (c *Config) UnmarshalJSON(data []byte) error {
 		Port     int             `json:"port"`
 		WebPort  int             `json:"web_port"`
 		DeviceID string          `json:"device_id"`
+		Theme    string          `json:"theme"`
 		Peers    json.RawMessage `json:"peers"`
 	}
 	if err := json.Unmarshal(data, &raw); err != nil {
@@ -113,6 +116,9 @@ func (c *Config) UnmarshalJSON(data []byte) error {
 	}
 	if raw.DeviceID != "" {
 		c.DeviceID = raw.DeviceID
+	}
+	if raw.Theme != "" {
+		c.Theme = raw.Theme
 	}
 
 	if len(raw.Peers) == 0 {

@@ -8,6 +8,7 @@ import SettingsView from './components/SettingsView.vue'
 import AboutView from './components/AboutView.vue'
 import ToastStack from './components/ToastStack.vue'
 import { useToast } from './composables/useToast'
+import { useTheme } from './composables/useTheme'
 
 const tabs = [
   { key: 'history', label: '历史', icon: 'clipboard', component: HistoryView },
@@ -20,6 +21,8 @@ const activeKey = ref('history')
 const activeComponent = computed(() => tabs.find((t) => t.key === activeKey.value)!.component)
 
 const toast = useToast()
+// 主题以 Go 侧配置为唯一事实来源，在这里绑定一次即可全局生效。
+useTheme()
 </script>
 
 <template>

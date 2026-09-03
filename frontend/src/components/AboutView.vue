@@ -4,7 +4,7 @@ import appIcon from '../assets/appicon.png'
 import { BrowserOpenURL } from '../wailsjs/runtime/runtime'
 
 // 版本号需与 wails.json 中的 productVersion 保持一致
-const version = '0.0.1'
+const version = '0.0.2'
 const author = 'BrokenDream_Star'
 const repoURL = 'https://github.com/BrokenDreamStar/ClipSync'
 const licenseURL = 'https://www.gnu.org/licenses/lgpl-3.0.html'
@@ -37,7 +37,7 @@ const highlights = [
       <ul class="space-y-3">
         <li v-for="h in highlights" :key="h.text" class="flex items-center gap-3 text-sm text-muted">
           <span
-            class="w-7 h-7 rounded-lg bg-white/[0.05] inline-flex items-center justify-center text-accent shrink-0"
+            class="w-7 h-7 rounded-lg bg-overlay inline-flex items-center justify-center text-accent shrink-0"
           >
             <Icon :name="h.icon" :size="15" />
           </span>
@@ -48,7 +48,7 @@ const highlights = [
 
     <section class="mb-10">
       <h2 class="text-[15px] font-semibold text-text mb-4">技术信息</h2>
-      <div class="rounded-xl bg-white/[0.03] px-4 py-3 space-y-2 text-sm">
+      <div class="rounded-xl bg-overlay-soft px-4 py-3 space-y-2 text-sm">
         <div class="flex justify-between gap-4">
           <span class="text-muted">运行时</span>
           <span class="text-text">Go + Wails v2</span>
@@ -62,7 +62,7 @@ const highlights = [
 
     <section class="mb-10">
       <h2 class="text-[15px] font-semibold text-text mb-4">作者</h2>
-      <div class="rounded-xl bg-white/[0.03] px-4 py-3 space-y-2 text-sm">
+      <div class="rounded-xl bg-overlay-soft px-4 py-3 space-y-2 text-sm">
         <div class="flex justify-between gap-4">
           <span class="text-muted">作者</span>
           <span class="text-text">{{ author }}</span>

@@ -84,6 +84,7 @@ func main() {
 
 	app := NewApp(nil, eng)
 
+	bgR, bgG, bgB := backgroundColorFor(cfg.Theme)
 	err = wails.Run(&options.App{
 		Title:  "ClipSync",
 		Width:  880,
@@ -91,7 +92,7 @@ func main() {
 		AssetServer: &assetserver.Options{
 			Assets: assets,
 		},
-			BackgroundColour: &options.RGBA{R: 0x24, G: 0x23, B: 0x21, A: 1},
+		BackgroundColour: &options.RGBA{R: bgR, G: bgG, B: bgB, A: 1},
 		OnStartup: func(ctx context.Context) {
 			app.ctx = ctx
 			app.subscribe()
@@ -102,15 +103,18 @@ func main() {
 			StartTray(app.ShowMainWindow, app.Quit)
 		},
 		Bind: []interface{}{app},
-			Mac: &mac.Options{
-				TitleBar:   mac.TitleBarHidden(),
-				Appearance: mac.NSAppearanceNameDarkAqua,
+		Mac: &mac.Options{
+			TitleBar:   mac.TitleBarHidden(),
+			Appearance: macAppearance(cfg.Theme),
 			About: &mac.AboutInfo{
 				Title:   "ClipSync",
 				Message: "局域网 macOS ↔ Windows 剪贴板同步工具",
 			},
 		},
-		Windows: &windows.Options{},
+		Windows: &windows.Options{
+			// "system" 跟随系统深浅色；native 标题栏颜色随之切换。
+			Theme: windowsTheme(cfg.Theme),
+		},
 		HideWindowOnClose: true,
 		OnBeforeClose: func(ctx context.Context) (prevent bool) {
 			// "关闭"/Cmd+W 的隐藏到托盘行为由 HideWindowOnClose 在各平台原生产层处理，
@@ -133,6 +137,53 @@ func main() {
 // onTrayReady 已删除，改用 StartTray。
 
 // isConsole / openWindowsLogFile 保留 Windows 帮助函数。
+
+// ---- 主题解析 ----
+
+// effectiveDark 把主题偏好解析为「当前是否深色」；"system" 依据系统实时外观。
+func effectiveDark(theme string) bool {
+	switch theme {
+	case "light":
+		return false
+	case "system":
+		return systemPrefersDark()
+	default:
+		return true
+	}
+}
+
+// backgroundColorFor 返回主题对应的原生窗口背景色（与前端 --c-surface 一致），
+// 避免浅色主题下窗口加载/拉伸时露出深色底。
+func backgroundColorFor(theme string) (r, g, b uint8) {
+	if effectiveDark(theme) {
+		return 0x24, 0x23, 0x21
+	}
+	return 0xFA, 0xFA, 0xF8
+}
+
+// macAppearance 返回 macOS NSAppearance；"system" 返回默认值让窗口跟随系统外观。
+func macAppearance(theme string) mac.AppearanceType {
+	switch theme {
+	case "light":
+		return mac.NSAppearanceNameAqua
+	case "dark":
+		return mac.NSAppearanceNameDarkAqua
+	default:
+		return mac.DefaultAppearance
+	}
+}
+
+// windowsTheme 返回 Windows 原生窗口主题（标题栏颜色）；"system" 跟随系统。
+func windowsTheme(theme string) windows.Theme {
+	switch theme {
+	case "light":
+		return windows.Light
+	case "dark":
+		return windows.Dark
+	default:
+		return windows.SystemDefault
+	}
+}
 
 func isConsole() bool {
 	return getConsoleWindow() != 0

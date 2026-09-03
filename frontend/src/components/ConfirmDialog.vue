@@ -20,9 +20,9 @@ const emit = defineEmits<{
   <Teleport to="body">
     <transition name="fade">
       <div v-if="open" class="fixed inset-0 z-[60] flex items-center justify-center p-6">
-        <div class="absolute inset-0 bg-black/55 backdrop-blur-sm" @click="emit('cancel')"></div>
+        <div class="absolute inset-0 bg-scrim backdrop-blur-sm" @click="emit('cancel')"></div>
         <div
-          class="relative w-full max-w-sm rounded-2xl bg-elevated border border-white/10 shadow-pop overflow-hidden"
+          class="relative w-full max-w-sm rounded-2xl bg-elevated border border-line shadow-pop overflow-hidden"
           role="dialog"
           aria-modal="true"
         >

@@ -6,6 +6,10 @@ export function CopyLocal(arg1) {
   return window['go']['main']['App']['CopyLocal'](arg1);
 }
 
+export function GetAutostart() {
+  return window['go']['main']['App']['GetAutostart']();
+}
+
 export function GetConfig() {
   return window['go']['main']['App']['GetConfig']();
 }
@@ -72,6 +76,14 @@ export function SaveConfig(arg1, arg2) {
 
 export function ScanNow() {
   return window['go']['main']['App']['ScanNow']();
+}
+
+export function SetAutostart(arg1) {
+  return window['go']['main']['App']['SetAutostart'](arg1);
+}
+
+export function SetTheme(arg1) {
+  return window['go']['main']['App']['SetTheme'](arg1);
 }
 
 export function ShowMainWindow() {

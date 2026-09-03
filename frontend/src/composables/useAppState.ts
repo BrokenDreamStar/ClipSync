@@ -42,6 +42,7 @@ export interface AppConfig {
   name: string
   port: number
   device_id: string
+  theme: string
   peers: PeerView[]
 }
 

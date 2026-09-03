@@ -5,6 +5,8 @@ import {engine} from '../models';
 
 export function CopyLocal(arg1:string):Promise<string>;
 
+export function GetAutostart():Promise<boolean>;
+
 export function GetConfig():Promise<main.ConfigView|string>;
 
 export function GetConnectedPeers():Promise<Array<string>>;
@@ -38,5 +40,9 @@ export function RespondPairRequest(arg1:string,arg2:boolean):Promise<string>;
 export function SaveConfig(arg1:string,arg2:number):Promise<string>;
 
 export function ScanNow():Promise<void>;
+
+export function SetAutostart(arg1:boolean):Promise<string>;
+
+export function SetTheme(arg1:string):Promise<string>;
 
 export function ShowMainWindow():Promise<void>;

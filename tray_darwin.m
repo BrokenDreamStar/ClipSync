@@ -82,3 +82,22 @@ void csSetupTray(const void *iconData, long iconLen,
         free(args);
     });
 }
+
+int csSystemPrefersDark(void) {
+    NSString *style = [[NSUserDefaults standardUserDefaults]
+        stringForKey:@"AppleInterfaceStyle"];
+    return [style isEqualToString:@"Dark"] ? 1 : 0;
+}
+
+void csApplyAppearance(int dark) {
+    dispatch_async(dispatch_get_main_queue(), ^{
+        if (@available(macOS 10.14, *)) {
+            if (dark < 0) {
+                [NSApp setAppearance:nil];
+                return;
+            }
+            [NSApp setAppearance:[NSAppearance appearanceNamed:
+                dark ? NSAppearanceNameDarkAqua : NSAppearanceNameAqua]];
+        }
+    });
+}
