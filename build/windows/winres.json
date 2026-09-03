@@ -24,8 +24,8 @@
             "ProductVersion": "0.0.3",
             "CompanyName": "ClipSync Dev",
             "FileDescription": "局域网 macOS ↔ Windows 剪贴板同步工具",
-            "InternalName": "clipsync",
-            "OriginalFilename": "clipsync.exe",
+            "InternalName": "ClipSync",
+            "OriginalFilename": "ClipSync.exe",
             "ProductName": "ClipSync",
             "Comments": "局域网剪贴板同步工具"
           }

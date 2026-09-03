@@ -26,12 +26,12 @@ UI 基于 Wails v2 + Vue 3 + Vite + Tailwind，后端为纯 Go。
 
 ```bash
 # macOS
-open build/bin/clipsync.app
+open build/bin/ClipSync.app
 # 或者直接执行二进制
-./build/bin/clipsync.app/Contents/MacOS/clipsync
+./build/bin/ClipSync.app/Contents/MacOS/ClipSync
 
 # Windows
-build\bin\clipsync.exe
+build\bin\ClipSync.exe
 ```
 
 ### 2. 配对（自动发现 + 手动确认）
@@ -49,7 +49,7 @@ build\bin\clipsync.exe
 也可以用命令行直接向某个地址发起配对（对方需在界面点「同意」）：
 
 ```bash
-./build/bin/clipsync.app/Contents/MacOS/clipsync -add-peer 192.168.1.20:9250
+./build/bin/ClipSync.app/Contents/MacOS/ClipSync -add-peer 192.168.1.20:9250
 ```
 
 ### 3. 同步
