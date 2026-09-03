@@ -94,7 +94,6 @@ async function onAutostart(enable: boolean) {
 
     <section class="mb-10">
       <h2 class="text-[15px] font-semibold text-text mb-5">外观</h2>
-      <span class="field-label">主题</span>
       <div class="seg" role="radiogroup" aria-label="主题">
         <button
           v-for="o in themeOptions"
@@ -109,7 +108,6 @@ async function onAutostart(enable: boolean) {
           {{ o.label }}
         </button>
       </div>
-      <p class="text-xs text-muted mt-3">「跟随系统」下应用外观随系统深浅色自动切换。</p>
     </section>
 
     <section class="mb-10">
