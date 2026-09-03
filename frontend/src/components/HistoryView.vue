@@ -72,7 +72,7 @@ async function onCopy(item: HistoryItem) {
     toast.err('复制失败：' + err)
     return
   }
-  toast.ok('已写入剪贴板并同步到对端')
+  toast.ok('已复制并同步')
 }
 </script>
 
@@ -81,7 +81,7 @@ async function onCopy(item: HistoryItem) {
     <header class="flex items-baseline justify-between mb-6">
       <div>
         <h1 class="text-[22px] font-semibold text-text leading-tight">历史记录</h1>
-        <p class="text-sm text-muted mt-1">复制到本机的文本 / 图片会自动同步到已配对设备</p>
+        <p class="text-sm text-muted mt-1">复制的内容将自动同步到已配对设备</p>
       </div>
       <span v-if="state.history.value.length" class="text-xs text-muted shrink-0">
         {{ state.history.value.length }} 条
@@ -96,7 +96,7 @@ async function onCopy(item: HistoryItem) {
         <Icon name="clipboard" :size="22" />
       </div>
       <p class="text-sm text-text">暂无记录</p>
-      <p class="text-xs text-muted mt-1">在对端复制文本 / 图片即可同步到此处</p>
+      <p class="text-xs text-muted mt-1">在任意一端复制的内容将显示在此处</p>
     </div>
 
     <!-- 列表 -->

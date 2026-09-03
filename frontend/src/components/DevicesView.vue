@@ -42,7 +42,7 @@ function ago(t: string): string {
 
 async function onScan() {
   await ScanNow()
-  toast.ok('已触发一次广播')
+  toast.ok('已重新扫描')
 }
 
 async function onPair(d: { device_id: string; name: string }) {
@@ -125,7 +125,7 @@ async function confirmRemove() {
     <header class="flex items-end justify-between gap-4 mb-8">
       <div>
         <h1 class="text-[22px] font-semibold text-text leading-tight">设备</h1>
-        <p class="text-sm text-muted mt-1">同一局域网内的 ClipSync 设备可被发现并主动配对</p>
+        <p class="text-sm text-muted mt-1">扫描局域网内的其他 ClipSync 设备并配对</p>
       </div>
       <button class="btn btn-ghost h-8 px-3 shrink-0" @click="onScan">
         <Icon name="refresh" :size="15" />
@@ -150,7 +150,7 @@ async function confirmRemove() {
               <span class="text-sm font-medium text-text">{{ r.name }}</span>
               <span class="text-xs text-muted font-mono">{{ r.addr }}</span>
             </div>
-            <div class="text-xs text-muted mt-0.5">请求与本设备同步剪贴板</div>
+            <div class="text-xs text-muted mt-0.5">请求与本机同步剪贴板</div>
           </div>
           <button class="btn btn-primary h-8 px-3.5 shrink-0" @click="onAcceptRequest(r)">同意</button>
           <button class="btn btn-ghost h-8 px-3.5 shrink-0" @click="onRejectRequest(r)">拒绝</button>
@@ -165,14 +165,13 @@ async function confirmRemove() {
         <span class="text-xs text-muted">{{ sortedDiscovered.length }} 台在线</span>
       </div>
 
-      <div v-if="sortedDiscovered.length === 0" class="py-16 text-center">
+      <div v-if="sortedDiscovered.length === 0" class="py-8 text-center">
         <div
-          class="mx-auto w-12 h-12 rounded-2xl bg-white/[0.04] inline-flex items-center justify-center text-muted mb-4"
+          class="mx-auto w-10 h-10 rounded-xl bg-white/[0.04] inline-flex items-center justify-center text-muted mb-3"
         >
-          <Icon name="radar" :size="22" />
+          <Icon name="radar" :size="18" />
         </div>
-        <p class="text-sm text-text">暂未发现设备</p>
-        <p class="text-xs text-muted mt-1">每 5 秒自动广播一次，确保两端同网段</p>
+        <p class="text-sm text-text">未发现设备</p>
       </div>
 
       <ul v-else>
@@ -200,7 +199,6 @@ async function confirmRemove() {
     <section class="mb-10">
       <div class="flex items-baseline justify-between mb-1.5">
         <h2 class="text-[15px] font-semibold text-text">已配对设备</h2>
-        <span class="text-xs text-muted">断线 / 换 IP 后自动重连</span>
       </div>
 
       <div v-if="sortedPeers.length === 0" class="py-16 text-center">
@@ -209,8 +207,8 @@ async function confirmRemove() {
         >
           <Icon name="link" :size="22" />
         </div>
-        <p class="text-sm text-text">尚未配对任何设备</p>
-        <p class="text-xs text-muted mt-1">在上方发现列表点「配对」，对方同意即可</p>
+        <p class="text-sm text-text">尚未配对设备</p>
+        <p class="text-xs text-muted mt-1">在上方发现列表中点击「配对」，对方确认后即建立连接</p>
       </div>
 
       <ul v-else>
@@ -233,7 +231,7 @@ async function confirmRemove() {
                   class="w-1.5 h-1.5 rounded-full shrink-0"
                   :class="peerOnline[p.addr] ? 'bg-success' : 'bg-muted/60'"
                 />
-                {{ peerOnline[p.addr] ? '在线，复制即同步' : '离线，等待重连' }}
+                {{ peerOnline[p.addr] ? '在线' : '离线' }}
               </div>
             </div>
           </div>

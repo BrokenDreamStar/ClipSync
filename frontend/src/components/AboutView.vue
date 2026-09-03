@@ -1,14 +1,18 @@
 <script setup lang="ts">
 import Icon from './Icon.vue'
 import appIcon from '../assets/appicon.png'
+import { BrowserOpenURL } from '../wailsjs/runtime/runtime'
 
 // 版本号需与 wails.json 中的 productVersion 保持一致
 const version = '0.0.1'
+const author = 'BrokenDream_Star'
+const repoURL = 'https://github.com/BrokenDreamStar/ClipSync'
+const licenseURL = 'https://www.gnu.org/licenses/lgpl-3.0.html'
 
 const highlights = [
-  { icon: 'zap', text: '局域网内剪贴板实时同步' },
-  { icon: 'shield', text: '配对加密传输，数据不出内网' },
-  { icon: 'wifi', text: '自动发现同网段设备，无需手动配置' },
+  { icon: 'zap', text: '局域网内自动同步剪贴板' },
+  { icon: 'shield', text: '数据仅在本局域网内传输' },
+  { icon: 'wifi', text: '自动发现同网段设备，配对一次即可' },
 ]
 </script>
 
@@ -24,7 +28,7 @@ const highlights = [
       <h2 class="text-lg font-semibold text-text leading-tight">ClipSync</h2>
       <p class="text-xs text-muted mt-1 font-mono">v{{ version }}</p>
       <p class="text-sm text-muted mt-4 leading-relaxed max-w-sm">
-        一款轻量的局域网剪贴板同步工具，在多台设备间即时共享文本与图片。
+        一款轻量级的跨平台剪贴板同步工具
       </p>
     </section>
 
@@ -53,13 +57,39 @@ const highlights = [
           <span class="text-muted">界面</span>
           <span class="text-text">Vue 3 + Tailwind CSS</span>
         </div>
+      </div>
+    </section>
+
+    <section class="mb-10">
+      <h2 class="text-[15px] font-semibold text-text mb-4">作者</h2>
+      <div class="rounded-xl bg-white/[0.03] px-4 py-3 space-y-2 text-sm">
         <div class="flex justify-between gap-4">
-          <span class="text-muted">网络</span>
-          <span class="text-text font-mono text-xs leading-5">mDNS 发现 · TCP 同步</span>
+          <span class="text-muted">作者</span>
+          <span class="text-text">{{ author }}</span>
+        </div>
+        <div class="flex justify-between gap-4">
+          <span class="text-muted">GitHub</span>
+          <button
+            class="inline-flex items-center gap-1.5 text-accent hover:text-accent-hover cursor-pointer"
+            @click="BrowserOpenURL(repoURL)"
+          >
+            <Icon name="link" :size="14" />
+            BrokenDreamStar/ClipSync
+          </button>
+        </div>
+        <div class="flex justify-between gap-4">
+          <span class="text-muted">许可证</span>
+          <button
+            class="inline-flex items-center gap-1.5 text-accent hover:text-accent-hover cursor-pointer"
+            @click="BrowserOpenURL(licenseURL)"
+          >
+            <Icon name="shield" :size="14" />
+            LGPL v3
+          </button>
         </div>
       </div>
     </section>
 
-    <p class="text-center text-xs text-muted">仅供学习与个人使用 · © 2026 ClipSync</p>
+    <p class="text-center text-xs text-muted">© 2021 - 2026 StarM Team · {{ author }}</p>
   </div>
 </template>
