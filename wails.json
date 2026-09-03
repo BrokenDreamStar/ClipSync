@@ -7,13 +7,13 @@
   "frontend:dev:watcher": "npm run dev",
   "frontend:dev:serverUrl": "auto",
   "wailsjsdir": "./frontend/src",
-  "version": "0.0.1",
+  "version": "0.0.3",
   "author": {
     "name": "BrokenDream_Star"
   },
   "info": {
     "productName": "ClipSync",
-    "productVersion": "0.0.1",
+    "productVersion": "0.0.3",
     "copyright": "",
     "comments": "\u5c40\u57df\u7f51\u526a\u8d34\u677f\u540c\u6b65\u5de5\u5177"
   },

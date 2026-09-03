@@ -57,13 +57,6 @@ async function onSave() {
       </p>
     </section>
 
-    <section class="mb-10">
-      <h2 class="text-[15px] font-semibold text-text mb-3">配对方式</h2>
-      <p class="text-sm text-muted leading-relaxed">
-        在「设备」页点击「配对」发起请求，对方确认后即开始同步；无需在两端配置相同的密钥。
-      </p>
-    </section>
-
     <div class="flex items-center justify-between gap-4">
       <p class="text-xs text-muted">修改本机名或端口需重启生效</p>
       <button class="btn btn-primary" @click="onSave">

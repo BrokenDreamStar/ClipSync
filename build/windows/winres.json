@@ -15,13 +15,13 @@
     "#1": {
       "0409": {
         "fixed": {
-          "file_version": "0.2.0.0",
-          "product_version": "0.2.0.0"
+          "file_version": "0.0.3.0",
+          "product_version": "0.0.3.0"
         },
         "info": {
           "0000": {
-            "FileVersion": "0.2.0.0",
-            "ProductVersion": "0.2.0",
+            "FileVersion": "0.0.3.0",
+            "ProductVersion": "0.0.3",
             "CompanyName": "ClipSync Dev",
             "FileDescription": "局域网 macOS ↔ Windows 剪贴板同步工具",
             "InternalName": "clipsync",

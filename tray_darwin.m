@@ -82,3 +82,9 @@ void csSetupTray(const void *iconData, long iconLen,
         free(args);
     });
 }
+
+void csApplyAccessoryPolicy(void) {
+    dispatch_async(dispatch_get_main_queue(), ^{
+        [NSApp setActivationPolicy:NSApplicationActivationPolicyAccessory];
+    });
+}

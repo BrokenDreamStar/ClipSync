@@ -12,6 +12,10 @@ import (
 //go:embed build/windows/icon.ico
 var winTrayIcon []byte
 
+// SetAccessoryActivationPolicy 在 Windows 上是 no-op：该策略仅 macOS 需要，
+// 用于把 NSApp 切成 accessory、隐藏 Dock 图标。
+func SetAccessoryActivationPolicy() {}
+
 // StartTray 在 Windows 上安装系统托盘图标与菜单。
 //
 // Wails v2 的 Windows 前端把 OnStartup 放在独立 goroutine 里调用，

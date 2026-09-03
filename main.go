@@ -92,7 +92,7 @@ func main() {
 			Assets: assets,
 		},
 			BackgroundColour: &options.RGBA{R: 0x24, G: 0x23, B: 0x21, A: 1},
-		OnStartup: func(ctx context.Context) {
+OnStartup: func(ctx context.Context) {
 			app.ctx = ctx
 			app.subscribe()
 			// macOS 上安装自定义 NSStatusItem 托盘（避免与 Wails AppDelegate 冲突）。
@@ -100,6 +100,13 @@ func main() {
 			// NSStatusBar 创建窗口才不会触发 NSInternalInconsistencyException。
 			// 其他平台为 no-op。
 			StartTray(app.ShowMainWindow, app.Quit)
+			// macOS 上把 NSApp 激活策略切到 accessory:不出现在 Dock,
+			// 不被 Cmd+Tab 列出,只通过菜单栏托盘交互。
+			// Wails AppDelegate 在 applicationWillFinishLaunching: 里强制设过
+			// Regular,必须这里覆盖一次。
+			if runtime.GOOS == "darwin" {
+				SetAccessoryActivationPolicy()
+			}
 		},
 		Bind: []interface{}{app},
 			Mac: &mac.Options{
@@ -111,14 +118,17 @@ func main() {
 			},
 		},
 		Windows: &windows.Options{},
-		HideWindowOnClose: true,
-		OnBeforeClose: func(ctx context.Context) (prevent bool) {
-			// "关闭"/Cmd+W 的隐藏到托盘行为由 HideWindowOnClose 在各平台原生产层处理，
-			// 不会走到这里。因此 OnBeforeClose 只会收到真正的退出请求
-			// （Cmd+Q / 应用菜单 Quit / 托盘"退出"），直接放行即可：
-			// 若在这里拦截隐藏，Cmd+Q 会被误当成"隐藏窗口"，应用无法完全退出。
-			return false
-		},
+			// 全平台开启 HideWindowOnClose：红钮/Cmd+W/窗口关闭按钮都只触发
+			// "隐藏窗口",不结束应用。彻底退出走菜单栏托盘的"退出"菜单,
+			// 它会调用 app.Quit → runtime.Quit → 走到下面的 OnBeforeClose。
+			HideWindowOnClose: true,
+			OnBeforeClose: func(ctx context.Context) (prevent bool) {
+				// 这里只会被"真正的退出请求"触发（Cmd+Q / 托盘退出 /
+				// 应用菜单 Quit）。红钮在 HideWindowOnClose=true 时已被
+				// windowShouldClose: 拦截成 [NSApp hide:nil],不会到这一步。
+				// 放行,让 wails.Run 走完清理流程。
+				return false
+			},
 	})
 	if err != nil {
 		eng.Stop()

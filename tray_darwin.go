@@ -7,7 +7,8 @@ package main
 #cgo LDFLAGS: -framework Cocoa -framework Foundation
 #include "tray_darwin.h"
 
-// cgo 把 ObjC 实现放在独立 .m 文件中，避免在 Go 翻译单元中重复实例化 ObjC class。
+extern void csGoOpenTrampoline(void);
+extern void csGoQuitTrampoline(void);
 */
 import "C"
 import "unsafe"
@@ -26,6 +27,14 @@ func StartTray(onOpen, onQuit func()) {
 		unsafe.Pointer(&trayIcon[0]), C.long(len(trayIcon)),
 		C.CString("ClipSync — 局域网剪贴板同步"),
 	)
+}
+
+// SetAccessoryActivationPolicy 把 NSApp 的激活策略切成 accessory：
+// 取消 Dock 图标 + Cmd+Tab 列表项，仅保留菜单栏托盘入口。
+// 必须在 Wails OnStartup 里调用 —— 此时 NSApp 已存在且 Wails 已经设过
+// Regular,这里强制覆盖一次。
+func SetAccessoryActivationPolicy() {
+	C.csApplyAccessoryPolicy()
 }
 
 //export csGoOpenTrampoline

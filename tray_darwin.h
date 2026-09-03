@@ -19,6 +19,13 @@ typedef struct {
 void csSetupTray(const void *iconData, long iconLen,
                  const char *tooltip);
 
+// 把 NSApp 的激活策略切到 accessory:
+// 应用不出现在 Dock,也不被 Cmd+Tab 列出,但菜单栏 NSStatusItem 仍然可见。
+// 必须在 Wails OnStartup 内调用 —— Wails AppDelegate 在
+// applicationWillFinishLaunching: 里强制设了 Regular,这里覆盖一次。
+// 同样通过 dispatch_async 派发到主线程。
+void csApplyAccessoryPolicy(void);
+
 void csRebuildMenu(void);
 void csSetIcon(const void *data, long len);
 void csSetTooltip(const char *t);
