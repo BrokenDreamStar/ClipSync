@@ -4,7 +4,7 @@ import appIcon from '../assets/appicon.png'
 import { BrowserOpenURL } from '../wailsjs/runtime/runtime'
 
 // 版本号需与 wails.json 中的 productVersion 保持一致
-const version = '0.0.3'
+const version = '0.0.4'
 const author = 'BrokenDream_Star'
 const repoURL = 'https://github.com/BrokenDreamStar/ClipSync'
 const licenseURL = 'https://www.gnu.org/licenses/lgpl-3.0.html'

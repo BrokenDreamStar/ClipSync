@@ -5,6 +5,24 @@
 
 ## [Unreleased]
 
+### 新增
+
+- **纯 Wayland 支持**：Linux 剪贴板不再强依赖 X11——X11 不可用（未启用 XWayland 的纯 Wayland 会话）时自动切换到 `wl-clipboard`（`wl-copy` / `wl-paste`）实现剪贴板监听与写入，文本与图片均可同步。AppImage 会内置这两个工具（打包机需装有 `wl-clipboard`），裸二进制部署需自行安装 `wl-clipboard` 包。
+
+## [0.0.4] - 2026-09-07
+
+### 新增
+
+- **Linux 支持**：适配 Linux 平台——系统托盘（纯 Go DBus / StatusNotifierItem，无 GTK 依赖）、XDG 开机自启（AppImage 环境自动记录 AppImage 路径）、通过 gsettings 探测深浅色的「跟随系统」主题。Release 产物新增 `ClipSync-*-linux-x86_64.AppImage`（依赖系统 WebKitGTK 4.1）。
+- **无边框窗口**：Windows 与 Linux 不再显示系统原生标题栏（即 macOS 顶部那条 "ClipSync" 标题条），三端观感一致；窗口拖动通过左侧栏拖拽区完成。
+- **启动时最小化到任务栏**：设置页「通用」新增开关。开启后应用启动时不再弹出主窗口，仅在托盘显示图标，可通过托盘菜单「打开主窗口」唤出。配置文件新增 `start_minimized` 字段（默认关闭，旧配置自动兼容）。
+
+### 变更
+
+- **构建**：Wails 绑定生成阶段（`-tags bindings`）不再启动同步引擎与剪贴板监听，修复"应用正在运行时执行 `wails build` / `wails dev` 因 9250 端口被占用而失败"的问题。
+- **构建**：新增 Docker 化 Linux 构建环境（`build/linux/Dockerfile` + `build/linux/build_in_docker.sh`），macOS 上一条命令即可在与 CI 同构的 amd64 Ubuntu 24.04 容器里完成 `wails build` / `go vet` / `go test`。AppImage 阶段在 Docker Desktop on Apple Silicon 上自动跳过（emulation 不翻译 `appimagetool` 这类非 PIE ELF），由 CI/Linux runner 完成。
+- **CI**：Release 流水线新增 `build-linux` 作业（ubuntu-latest + `webkit2_41` 构建标签 + appimagetool），与 macOS DMG、Windows EXE 一同发布。
+
 ## [0.0.3] - 2026-09-04
 
 ### 变更
@@ -42,6 +60,7 @@
 - 系统托盘（macOS NSStatusItem / Windows systray），关闭窗口后驻留后台
 - 手动配对 IP/端口兜底入口
 
-[Unreleased]: https://github.com/BrokenDreamStar/ClipSync/compare/v0.0.3...HEAD
+[Unreleased]: https://github.com/BrokenDreamStar/ClipSync/compare/v0.0.4...HEAD
+[0.0.4]: https://github.com/BrokenDreamStar/ClipSync/compare/v0.0.3...v0.0.4
 [0.0.3]: https://github.com/BrokenDreamStar/ClipSync/compare/v0.0.2...v0.0.3
 [0.0.2]: https://github.com/BrokenDreamStar/ClipSync/compare/v0.0.1...v0.0.2
