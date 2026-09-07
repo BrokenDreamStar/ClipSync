@@ -104,9 +104,56 @@ jobs:
           path: build/bin/ClipSync-*-windows-amd64.exe
           if-no-files-found: error
 
+  build-linux:
+    name: 构建 Linux AppImage
+    runs-on: ubuntu-latest
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@v4
+
+      - name: 安装 Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+
+      - name: 安装 Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      # Wails Linux 需要 GTK3 + WebKitGTK；ubuntu-latest (24.04) 只有 4.1 系列，
+      # 构建时需带 -tags webkit2_41（Wails CLI 不会自动探测）。
+      # wl-clipboard 的 wl-copy / wl-paste 会被 AppImage 内置，供纯 Wayland 会话使用。
+      - name: 安装 Linux 构建依赖
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libgtk-3-dev libwebkit2gtk-4.1-dev wl-clipboard
+
+      - name: 安装 Wails CLI
+        run: go install github.com/wailsapp/wails/v2/cmd/wails@v2.15.0
+
+      - name: 安装前端依赖
+        working-directory: frontend
+        run: npm install
+
+      - name: 构建 Linux amd64
+        run: wails build -platform linux/amd64 -tags webkit2_41
+
+      - name: 打包 AppImage
+        run: sh build/linux/build_appimage.sh
+
+      - name: 上传 AppImage 产物
+        uses: actions/upload-artifact@v4
+        with:
+          name: ClipSync-linux
+          path: build/bin/ClipSync-*-linux-*.AppImage
+          if-no-files-found: error
+
   release:
     name: 发布 GitHub Release
-    needs: [build-macos, build-windows]
+    needs: [build-macos, build-windows, build-linux]
     runs-on: ubuntu-latest
     steps:
       - name: 检出代码

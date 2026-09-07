@@ -1,0 +1,10 @@
+[Desktop Entry]
+Type=Application
+Name=ClipSync
+GenericName=剪贴板同步
+Comment=局域网内多设备剪贴板同步工具
+Exec=AppRun
+Icon=clipsync
+Terminal=false
+Categories=Network;Utility;
+StartupWMClass=ClipSync

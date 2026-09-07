@@ -18,3 +18,7 @@ trayhelper/Resources/trayhelper
 # 本地备份
 .icon_backup/
 wails.json.bak
+
+# AppImage 打包的中间产物
+build/linux/ClipSync.AppDir/
+build/linux/.appimagetool-*

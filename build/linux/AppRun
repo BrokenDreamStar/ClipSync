@@ -1,0 +1,7 @@
+#!/bin/sh
+# ClipSync AppImage 的 AppRun：定位挂载目录并启动真正的二进制。
+HERE="$(dirname "$(readlink -f "$0")")"
+# 把 AppDir 的 bin 目录加入 PATH：内置的 wl-copy / wl-paste（纯 Wayland
+# 剪贴板后端）由此在运行时可见，无需用户另装 wl-clipboard。
+export PATH="$HERE/usr/bin:$PATH"
+exec "$HERE/usr/bin/ClipSync" "$@"
