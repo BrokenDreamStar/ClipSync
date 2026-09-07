@@ -27,12 +27,13 @@ type Peer struct {
 
 // Config 是持久化的配置。
 type Config struct {
-	Name     string `json:"name"`      // 本机显示名
-	Port     int    `json:"port"`      // 同步监听端口
-	WebPort  int    `json:"web_port"`  // 管理界面端口（仅本机访问）
-	DeviceID string `json:"device_id"` // 本机唯一身份，首次启动生成后不变
-	Theme    string `json:"theme"`     // 界面主题偏好："dark" / "light" / "system"
-	Peers    []Peer `json:"peers"`     // 已配对对端列表
+	Name           string `json:"name"`            // 本机显示名
+	Port           int    `json:"port"`            // 同步监听端口
+	WebPort        int    `json:"web_port"`        // 管理界面端口（仅本机访问）
+	DeviceID       string `json:"device_id"`       // 本机唯一身份，首次启动生成后不变
+	Theme          string `json:"theme"`           // 界面主题偏好："dark" / "light" / "system"
+	StartMinimized bool   `json:"start_minimized"` // 启动时不弹出主窗口，仅保留托盘图标
+	Peers          []Peer `json:"peers"`           // 已配对对端列表
 }
 
 func configPath() string {
@@ -94,12 +95,13 @@ func loadConfig(path string) (*Config, error) {
 // 密钥会被丢弃，需要按新流程重新配对；token / auto_pair 字段被忽略。
 func (c *Config) UnmarshalJSON(data []byte) error {
 	var raw struct {
-		Name     string          `json:"name"`
-		Port     int             `json:"port"`
-		WebPort  int             `json:"web_port"`
-		DeviceID string          `json:"device_id"`
-		Theme    string          `json:"theme"`
-		Peers    json.RawMessage `json:"peers"`
+		Name           string          `json:"name"`
+		Port           int             `json:"port"`
+		WebPort        int             `json:"web_port"`
+		DeviceID       string          `json:"device_id"`
+		Theme          string          `json:"theme"`
+		StartMinimized bool            `json:"start_minimized"`
+		Peers          json.RawMessage `json:"peers"`
 	}
 	if err := json.Unmarshal(data, &raw); err != nil {
 		return err
@@ -120,6 +122,8 @@ func (c *Config) UnmarshalJSON(data []byte) error {
 	if raw.Theme != "" {
 		c.Theme = raw.Theme
 	}
+	// bool 字段缺省即为 false（与 defaultConfig 一致），无需判空。
+	c.StartMinimized = raw.StartMinimized
 
 	if len(raw.Peers) == 0 {
 		c.Peers = nil

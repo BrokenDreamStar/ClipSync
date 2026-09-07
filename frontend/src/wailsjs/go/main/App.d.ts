@@ -43,6 +43,8 @@ export function ScanNow():Promise<void>;
 
 export function SetAutostart(arg1:boolean):Promise<string>;
 
+export function SetStartMinimized(arg1:boolean):Promise<string>;
+
 export function SetTheme(arg1:string):Promise<string>;
 
 export function ShowMainWindow():Promise<void>;

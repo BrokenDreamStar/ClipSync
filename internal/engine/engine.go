@@ -15,7 +15,7 @@ import (
 	"time"
 	"unicode/utf8"
 
-	"golang.design/x/clipboard"
+	"clipsync/internal/clipboard"
 )
 
 // HistoryItem 是一条剪贴板同步记录。
@@ -491,6 +491,16 @@ func (e *Engine) SetTheme(theme string) error {
 		return fmt.Errorf("未知主题: %s", theme)
 	}
 	e.cfg.Theme = theme
+	if err := e.cfg.Save(e.cfgPath); err != nil {
+		return err
+	}
+	e.publish(TopicConfig)
+	return nil
+}
+
+// SetStartMinimized 更新「启动时最小化到任务栏」偏好并持久化（下次启动生效）。
+func (e *Engine) SetStartMinimized(enable bool) error {
+	e.cfg.StartMinimized = enable
 	if err := e.cfg.Save(e.cfgPath); err != nil {
 		return err
 	}

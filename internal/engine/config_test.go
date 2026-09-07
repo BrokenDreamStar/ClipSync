@@ -66,6 +66,45 @@ func TestLoadConfigNewFormat(t *testing.T) {
 	}
 }
 
+func TestStartMinimizedRoundTrip(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "config.json")
+
+	// 旧配置缺 start_minimized 字段：应解析为默认值 false。
+	_ = writeFileForTest(path, `{"name": "my-pc", "device_id": "id-123"}`)
+	cfg, err := LoadConfig(path)
+	if err != nil {
+		t.Fatalf("LoadConfig: %v", err)
+	}
+	if cfg.StartMinimized {
+		t.Fatal("缺少 start_minimized 的旧配置应默认为 false")
+	}
+
+	// 开启后落盘再读回，值应保持。
+	if err := cfg.Save(path); err != nil {
+		t.Fatalf("Save: %v", err)
+	}
+	cfg2, err := LoadConfig(path)
+	if err != nil {
+		t.Fatalf("LoadConfig: %v", err)
+	}
+	if cfg2.StartMinimized {
+		t.Fatal("默认配置的 start_minimized 应为 false")
+	}
+
+	cfg2.StartMinimized = true
+	if err := cfg2.Save(path); err != nil {
+		t.Fatalf("Save: %v", err)
+	}
+	cfg3, err := LoadConfig(path)
+	if err != nil {
+		t.Fatalf("LoadConfig: %v", err)
+	}
+	if !cfg3.StartMinimized {
+		t.Fatal("start_minimized=true 落盘后应读回 true")
+	}
+}
+
 func TestUpsertPeer(t *testing.T) {
 	cfg := &Config{}
 	changed := cfg.UpsertPeer(Peer{ID: "a", Name: "A", Addr: "1.1.1.1:9250", Secret: "s1"})

@@ -82,6 +82,10 @@ export function SetAutostart(arg1) {
   return window['go']['main']['App']['SetAutostart'](arg1);
 }
 
+export function SetStartMinimized(arg1) {
+  return window['go']['main']['App']['SetStartMinimized'](arg1);
+}
+
 export function SetTheme(arg1) {
   return window['go']['main']['App']['SetTheme'](arg1);
 }
