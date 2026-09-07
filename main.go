@@ -13,6 +13,7 @@ import (
 	"syscall"
 	"time"
 
+	"clipsync/internal/clipboard"
 	"clipsync/internal/engine"
 
 	"github.com/wailsapp/wails/v2"
@@ -20,8 +21,6 @@ import (
 	"github.com/wailsapp/wails/v2/pkg/options/assetserver"
 	"github.com/wailsapp/wails/v2/pkg/options/mac"
 	"github.com/wailsapp/wails/v2/pkg/options/windows"
-
-	"golang.design/x/clipboard"
 )
 
 //go:embed all:frontend/dist
@@ -66,19 +65,28 @@ func main() {
 		return
 	}
 
-	if err := clipboard.Init(); err != nil {
-		log.Fatalf("初始化剪贴板失败: %v", err)
-	}
+	// 绑定生成模式（wails build / wails dev 会用 -tags bindings 构建并真实运行
+	// 本二进制以提取绑定）：跳过剪贴板、引擎等一切副作用。否则绑定进程会启动
+	// 第二个引擎，与正在运行的实例抢 9250 端口，导致应用运行中无法构建。
+	var eng *engine.Engine
+	if !bindingGen {
+		if err := clipboard.Init(); err != nil {
+			log.Fatalf("初始化剪贴板失败: %v", err)
+		}
 
-	eng := engine.NewEngine(cfg, *configFile)
-	eng.Start()
-	fmt.Printf("ClipSync 已启动，本机名: %s，端口: %d\n", cfg.Name, cfg.Port)
+		eng = engine.NewEngine(cfg, *configFile)
+		eng.Start()
+		fmt.Printf("ClipSync 已启动，本机名: %s，端口: %d\n", cfg.Name, cfg.Port)
+	}
 
 	if *headless {
 		sig := make(chan os.Signal, 1)
 		signal.Notify(sig, os.Interrupt, syscall.SIGTERM)
 		<-sig
-		eng.Stop()
+		if eng != nil {
+			eng.Stop()
+		}
+		clipboard.Shutdown()
 		return
 	}
 
@@ -93,13 +101,18 @@ func main() {
 			Assets: assets,
 		},
 		BackgroundColour: &options.RGBA{R: bgR, G: bgG, B: bgB, A: 1},
+		// Windows / Linux 去掉系统原生标题栏（那条 "ClipSync" 标题条），
+		// 与 macOS 的 TitleBarHidden 观感一致；窗口拖动走前端侧栏的拖拽区。
+		// macOS 不能用 Frameless——它需要保留原生红绿灯，仍走 TitleBarHidden。
+		Frameless: runtime.GOOS == "windows" || runtime.GOOS == "linux",
 		OnStartup: func(ctx context.Context) {
 			app.ctx = ctx
 			app.subscribe()
 			// macOS 上安装自定义 NSStatusItem 托盘（避免与 Wails AppDelegate 冲突）。
 			// 必须放在 OnStartup 里:那时 NSApp 主线程已就绪,Cocoa 主队列活跃,
 			// NSStatusBar 创建窗口才不会触发 NSInternalInconsistencyException。
-			// 其他平台为 no-op。
+			// Windows 用 getlantern/systray、Linux 用 fyne.io/systray（纯 Go DBus，
+			// 避免与 Wails 主线程的 gtk_main 冲突），其余平台为 no-op。
 			StartTray(app.ShowMainWindow, app.Quit)
 			// macOS 上把 NSApp 激活策略切到 accessory:不出现在 Dock,
 			// 不被 Cmd+Tab 列出,只通过菜单栏托盘交互。
@@ -126,6 +139,9 @@ func main() {
 		// "隐藏窗口",不结束应用。彻底退出走菜单栏托盘的"退出"菜单,
 		// 它会调用 app.Quit → runtime.Quit → 走到下面的 OnBeforeClose。
 		HideWindowOnClose: true,
+		// 「启动时最小化到任务栏」：开启后窗口以隐藏方式启动,只保留托盘
+		// 图标,由用户通过托盘菜单"打开主窗口"唤出。默认关闭。
+		StartHidden: cfg.StartMinimized,
 		OnBeforeClose: func(ctx context.Context) (prevent bool) {
 			// 这里只会被"真正的退出请求"触发（Cmd+Q / 托盘退出 /
 			// 应用菜单 Quit）。红钮在 HideWindowOnClose=true 时已被
@@ -135,12 +151,18 @@ func main() {
 		},
 	})
 	if err != nil {
-		eng.Stop()
+		if eng != nil {
+			eng.Stop()
+		}
 		log.Fatalf("wails.Run: %v", err)
 	}
 	// 兜底:NSStatusItem / clipboard 等子线程残留会让进程在 Wails 退出后
 	// 短暂挂起;此处强制结束,确保"退出"就是真的退出。
-	eng.Stop()
+	if eng != nil {
+		eng.Stop()
+	}
+	// 终止 Wayland 剪贴板随行的 wl-paste --watch 子进程,避免应用退出后残留孤儿进程。
+	clipboard.Shutdown()
 	os.Exit(0)
 }
 

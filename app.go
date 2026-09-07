@@ -46,11 +46,12 @@ func errStr(err error) string {
 
 // ConfigView 返回当前配置（不含 WebPort，避免暴露未使用的字段）。
 type ConfigView struct {
-	Name     string     `json:"name"`
-	Port     int        `json:"port"`
-	DeviceID string     `json:"device_id"`
-	Theme    string     `json:"theme"`
-	Peers    []PeerView `json:"peers"`
+	Name           string     `json:"name"`
+	Port           int        `json:"port"`
+	DeviceID       string     `json:"device_id"`
+	Theme          string     `json:"theme"`
+	StartMinimized bool       `json:"start_minimized"`
+	Peers          []PeerView `json:"peers"`
 }
 
 // PeerView 是前端展示用的对端信息。
@@ -66,11 +67,12 @@ func (a *App) GetConfig() (ConfigView, string) {
 		return ConfigView{}, "engine 未启动"
 	}
 	return ConfigView{
-		Name:     cfg.Name,
-		Port:     cfg.Port,
-		DeviceID: cfg.DeviceID,
-		Theme:    cfg.Theme,
-		Peers:    peerViews(cfg),
+		Name:           cfg.Name,
+		Port:           cfg.Port,
+		DeviceID:       cfg.DeviceID,
+		Theme:          cfg.Theme,
+		StartMinimized: cfg.StartMinimized,
+		Peers:          peerViews(cfg),
 	}, ""
 }
 
@@ -99,6 +101,11 @@ func (a *App) GetAutostart() bool {
 // SetAutostart 开启/关闭开机自启：macOS 写 LaunchAgent，Windows 写注册表 Run 键。
 func (a *App) SetAutostart(enable bool) string {
 	return errStr(setAutostart(enable))
+}
+
+// SetStartMinimized 开关「启动时最小化到任务栏」：写入配置，下次启动生效。
+func (a *App) SetStartMinimized(enable bool) string {
+	return errStr(a.engine.SetStartMinimized(enable))
 }
 
 // ---- 对端 ----

@@ -43,6 +43,7 @@ export interface AppConfig {
   port: number
   device_id: string
   theme: string
+  start_minimized: boolean
   peers: PeerView[]
 }
 

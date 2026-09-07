@@ -100,6 +100,7 @@ export namespace main {
 	    port: number;
 	    device_id: string;
 	    theme: string;
+	    start_minimized: boolean;
 	    peers: PeerView[];
 	
 	    static createFrom(source: any = {}) {
@@ -112,6 +113,7 @@ export namespace main {
 	        this.port = source["port"];
 	        this.device_id = source["device_id"];
 	        this.theme = source["theme"];
+	        this.start_minimized = source["start_minimized"];
 	        this.peers = this.convertValues(source["peers"], PeerView);
 	    }
 	

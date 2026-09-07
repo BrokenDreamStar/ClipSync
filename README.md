@@ -1,6 +1,6 @@
 # ClipSync
 
-局域网内 macOS 与 Windows 之间的剪贴板同步工具，支持文本和图片。
+局域网内 macOS、Windows 与 Linux 之间的剪贴板同步工具，支持文本和图片。
 
 UI 基于 Wails v2 + Vue 3 + Vite + Tailwind，后端为纯 Go。
 
@@ -10,13 +10,13 @@ UI 基于 Wails v2 + Vue 3 + Vite + Tailwind，后端为纯 Go。
 - 局域网自动发现与配对（UDP 广播）：DHCP/Wi-Fi 切换 IP 后仍能继续同步
 - 原生窗口界面：设备状态、已发现/已配对设备、剪贴板历史（含图片缩略图）
 - 界面主题：浅色 / 深色 / 跟随系统，切换即时生效
-- 开机自启：登录系统后自动在后台启动（macOS LaunchAgent / Windows 注册表）
+- 开机自启：登录系统后自动在后台启动（macOS LaunchAgent / Windows 注册表 / Linux XDG autostart）
 - 系统托盘：关闭窗口后继续在托盘同步，可随时打开主窗口或退出
 - 设备身份 + 每对独享密钥认证，防止局域网内未授权设备连接
 - 手动配对：在扫描列表点击「配对」，对方确认后建立连接
 - 断线自动重连（每 5 秒重试），地址变化自动刷新
 - 心跳保活（60 秒），内容指纹去重避免回环
-- 单个二进制文件，无运行时依赖（macOS / Windows）
+- 单个二进制文件，无运行时依赖（macOS / Windows）；Linux 提供 AppImage（依赖系统 WebKitGTK 4.1）
 
 ## 使用
 
@@ -32,6 +32,10 @@ open build/bin/ClipSync.app
 
 # Windows
 build\bin\ClipSync.exe
+
+# Linux (AppImage；也可直接运行裸二进制)
+chmod +x ClipSync-*-linux-x86_64.AppImage
+./ClipSync-*-linux-x86_64.AppImage
 ```
 
 ### 2. 配对（自动发现 + 手动确认）
@@ -84,7 +88,8 @@ build\bin\ClipSync.exe
 - Windows 剪贴板图片格式为位图，同步时会转为 PNG 传输；接收端以 PNG 写入
 - 自动发现走 UDP 广播（端口 9251），要求两端在同一子网/广播域；跨子网请用手动配对
 - 传输未加密（每对设备的密钥仅用于认证）。家庭局域网可放心使用；不可信网络建议自行套 VPN/WireGuard
-- 系统字体：macOS 用 PingFang SC，Windows 用 Microsoft YaHei UI，WebView 自带中文回退
+- 系统字体：macOS 用 PingFang SC，Windows 用 Microsoft YaHei UI，Linux 用 WebKitGTK 默认字体，均带中文回退
+- Linux 剪贴板优先走 X11（Wayland 会话下经 XWayland 亦可用）；纯 Wayland 会话（未启用 XWayland）自动切换到 wl-clipboard（`wl-copy` / `wl-paste`，AppImage 已内置，裸二进制需自行安装 `wl-clipboard` 包）；原生 GNOME 桌面如需托盘图标，需启用 AppIndicator 扩展
 
 ## 构建
 
@@ -105,10 +110,24 @@ wails dev
 # 注意：-compiler 指定的是 Go 编译器，不是 C 编译器；C 交叉编译器用 CC 环境变量。
 # 不要写成 -compiler gcc，否则 wails 会用 gcc 执行 `go mod tidy` 而报错。
 CC=x86_64-w64-mingw32-gcc wails build -platform windows/amd64
+
+# Linux（需要 GTK3 / WebKitGTK 4.1 开发库，见下）
+wails build -platform linux/amd64 -tags webkit2_41
+sh build/linux/build_appimage.sh   # 把 build/bin/ClipSync 打成 AppImage
 ```
 
 > Windows 下 `-H windowsgui` 不再需要（Wails 默认不开控制台）。所有日志会写入
 > `%USERPROFILE%\.clipsync\app.log`。
+
+Linux 构建依赖（Debian/Ubuntu 为例）：
+
+```bash
+sudo apt install libgtk-3-dev libwebkit2gtk-4.1-dev
+```
+
+- `-tags webkit2_41` 选择 WebKitGTK 4.1 后端（Wails CLI 不会自动探测，必须显式指定）
+- `build_appimage.sh` 会自动下载对应架构的 appimagetool（经 `--appimage-extract-and-run` 调用，无需 FUSE）
+- AppImage 依赖目标系统安装 WebKitGTK 4.1（主流发行版的桌面环境均自带）；剪贴板优先走 X11（XWayland 下可用），纯 Wayland 会话自动切换到 wl-clipboard——打包机装有 `wl-clipboard` 时会内置进 AppImage，否则需用户自行安装
 
 ## 项目结构
 
@@ -125,7 +144,10 @@ CC=x86_64-w64-mingw32-gcc wails build -platform windows/amd64
 | `internal/engine/discovery.go` | UDP 局域网发现 |
 | `internal/engine/config.go` | 配置加载与保存 |
 | `tray_darwin.go` / `tray_darwin.m` / `tray_darwin.h` | macOS NSStatusItem 托盘（cgo） |
-| `tray_other.go` | 非 macOS 平台 no-op 占位 |
+| `tray_linux.go` | Linux 托盘（fyne.io/systray 纯 Go DBus，StatusNotifierItem） |
+| `tray_other.go` | 其余平台 no-op 占位 |
+| `autostart_*.go` / `appearance_*.go` | 各平台开机自启与深浅色探测实现 |
+| `build/linux/` | AppImage 打包资源（desktop 条目、AppRun、打包脚本） |
 | `icon.go` | 嵌入图标字节 |
 | `frontend/` | Vue 3 + Vite + Tailwind 前端项目 |
 | `frontend/src/App.vue` | 主布局：状态条 + 三段卡片 |

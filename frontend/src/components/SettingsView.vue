@@ -2,7 +2,7 @@
 import { ref, watch, computed, onMounted } from 'vue'
 import Icon from './Icon.vue'
 import ToggleSwitch from './ToggleSwitch.vue'
-import { SaveConfig, GetAutostart, SetAutostart } from '../wailsjs/go/main/App'
+import { SaveConfig, GetAutostart, SetAutostart, SetStartMinimized } from '../wailsjs/go/main/App'
 import { useAppState } from '../composables/useAppState'
 import { useToast } from '../composables/useToast'
 import { themeOptions, setThemePref, themePref, type ThemePref } from '../composables/useTheme'
@@ -19,6 +19,7 @@ watch(
     if (!c) return
     name.value = c.name
     port.value = c.port
+    startMinimized.value = !!c.start_minimized
   },
   { immediate: true }
 )
@@ -66,6 +67,21 @@ async function onAutostart(enable: boolean) {
   }
   toast.ok(enable ? '已开启开机自启，下次登录生效' : '已关闭开机自启')
 }
+
+// ---- 启动时最小化到任务栏 ----
+
+const startMinimized = ref(false)
+
+async function onStartMinimized(enable: boolean) {
+  const err = await SetStartMinimized(enable)
+  if (err) {
+    // 保存失败：回滚开关状态并提示。
+    startMinimized.value = !enable
+    toast.err('设置启动时最小化失败：' + err)
+    return
+  }
+  toast.ok(enable ? '下次启动时仅在托盘显示图标' : '下次启动时将显示主窗口')
+}
 </script>
 
 <template>
@@ -112,12 +128,21 @@ async function onAutostart(enable: boolean) {
 
     <section class="mb-10">
       <h2 class="text-[15px] font-semibold text-text mb-5">通用</h2>
-      <div class="flex items-center justify-between gap-4">
-        <div>
-          <p class="text-sm text-text">开机自启</p>
-          <p class="text-xs text-muted mt-1">登录系统后自动在后台启动 ClipSync</p>
+      <div class="space-y-5">
+        <div class="flex items-center justify-between gap-4">
+          <div>
+            <p class="text-sm text-text">开机自启</p>
+            <p class="text-xs text-muted mt-1">登录系统后自动在后台启动 ClipSync</p>
+          </div>
+          <ToggleSwitch v-model="autostart" :disabled="autostartLoading" @update:model-value="onAutostart" />
         </div>
-        <ToggleSwitch v-model="autostart" :disabled="autostartLoading" @update:model-value="onAutostart" />
+        <div class="flex items-center justify-between gap-4">
+          <div>
+            <p class="text-sm text-text">启动时最小化到任务栏</p>
+            <p class="text-xs text-muted mt-1">启动时不弹出主窗口，仅在托盘显示图标</p>
+          </div>
+          <ToggleSwitch v-model="startMinimized" @update:model-value="onStartMinimized" />
+        </div>
       </div>
     </section>
 

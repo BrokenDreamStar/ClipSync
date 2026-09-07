@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"fmt"
 
-	"golang.design/x/clipboard"
+	"clipsync/internal/clipboard"
 )
 
 // pngSignature 是 PNG 文件的 8 字节魔数。
