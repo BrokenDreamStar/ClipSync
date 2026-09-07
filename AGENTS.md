@@ -39,6 +39,7 @@ cd frontend && npx vue-tsc --noEmit  # 仅类型检查
 - 运行时配置在 `~/.clipsync/config.json`；Windows 日志写 `%USERPROFILE%\.clipsync\app.log`。
 - **窗口无边框**：Windows / Linux 走 `Frameless`（`main.go` 里按 `runtime.GOOS` 条件开启），无原生标题栏；拖窗口靠前端 `Sidebar` 的 `.drag-region`（`--wails-draggable`）。macOS 仍用 `mac.TitleBarHidden()`（需保留红绿灯），别把 macOS 也改成 Frameless。
 - **Linux 托盘/剪贴板限制**：托盘走 DBus StatusNotifierItem，原生 GNOME 需 AppIndicator 扩展；剪贴板优先走 X11（Wayland 会话下经 XWayland），纯 Wayland 会话回退 wl-clipboard——`wl-paste --watch` 是常驻子进程，`main.go` 退出路径必须调 `clipboard.Shutdown()` 清理；`wl-copy` 会 fork 常驻进程持有内容，给它接 stdout/stderr 管道会让 `cmd.Wait()` 卡到超时（见 `backend_wayland_linux.go` 的注释）。AppImage 内置这两个工具（`build_appimage.sh` + AppRun 的 PATH 注入）。
+- **WSL2 跑 AppImage**：`./ClipSync-*.AppImage` 默认要 libfuse2 挂载 squashfs，WSL2 CLI 装的 Ubuntu 22.04 可能没装（24.04 是 `libfuse2t64`）。两种解决：(1) `sudo apt install libfuse2 fuse`（或 `libfuse2t64`）后直接运行；(2) 不装 FUSE 时加 `--appimage-extract-and-run`（CI 用的就是这参数），或 `--appimage-extract` 后跑 `./squashfs-root/AppRun`。WSL2 内运行时库需自备：`libgtk-3-0` + `libwebkit2gtk-4.1-0`（22.04 是 4.0，包名 `libwebkit2gtk-4.0-37`），AppImage 不打包这些。WSLg（Win11）默认带，能弹窗；裸 WSL2 只能跑 CLI 路径。
 
 ## 提交与发布约定
 
