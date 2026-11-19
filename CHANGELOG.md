@@ -7,7 +7,7 @@
 
 ## [0.1.0] - 2026-11-19
 
-> 同日重发：首发 macOS DMG 因签名封印被破坏、Gatekeeper 判「已损坏」无法启动，修复后已重新发布；Windows EXE 与 Linux AppImage 首发产物不受影响。
+> 同日重发：首发 macOS DMG 因签名封印被破坏、Gatekeeper 判「已损坏」无法启动，修复后已重新发布；Windows EXE 与 Linux AppImage 首发产物不受影响。重发同时把 Release 矩阵从三平台扩展到五平台（Windows ARM64 + Linux aarch64）。
 
 ### 修复
 
@@ -22,6 +22,8 @@
   - 版本号改为运行时从内嵌的 `build/config.yml` 读取（与 Info.plist / Windows syso 同源），「关于」页版本号不再硬编码。
   - 网络受限环境可设 `CLIPSYNC_UPDATE_MIRROR` 环境变量走 ghproxy 类镜像（前缀拼接原始下载地址）。
   - 注意：0.0.4 及更早的发布没有 `latest.json`，旧版本内的更新检查会提示到发布页手动下载；从首个带清单的版本起，后续版本均可应用内自更新。
+- **Windows ARM64 与 Linux ARM64 发布**（重发扩展）：Release 矩阵从三平台扩展到五平台——Windows EXE 增加 arm64（与 amd64 同一份 CI 作业里纯 syscall 交叉编译，本地 `wails3 task windows:build:all` 一次产出双架构），Linux AppImage 增加 aarch64（GitHub 公开仓库免费的 arm64 原生 runner 构建，无需 QEMU 模拟）。应用内更新器同步支持：Windows ARM64 设备现在能识别自己的平台并下载对应更新包；`latest.json` 清单收录全部五个平台条目。
+  - 本地构建支持：`build/linux/build_in_docker.sh` 接受 `amd64|arm64` 参数，Apple Silicon 上 arm64 容器原生运行，本机即可产出 aarch64 AppImage（amd64 容器的 Rosetta 转译限制依旧，AppImage 阶段自动跳过，见 AGENTS.md）。
 
 ### 变更
 

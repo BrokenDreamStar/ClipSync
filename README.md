@@ -33,9 +33,9 @@ open build/bin/ClipSync.app
 # Windows
 build\bin\ClipSync.exe
 
-# Linux (AppImage；也可直接运行裸二进制)
-chmod +x ClipSync-*-linux-x86_64.AppImage
-./ClipSync-*-linux-x86_64.AppImage
+# Linux (AppImage；按 CPU 架构选 x86_64 / aarch64，也可直接运行裸二进制)
+chmod +x ClipSync-*-linux-*.AppImage
+./ClipSync-*-linux-*.AppImage
 ```
 
 ### 2. 配对（自动发现 + 手动确认）
@@ -107,15 +107,16 @@ wails3 dev
 wails3 task darwin:package:universal
 
 # 交叉编译 Windows（v3 Windows 后端为纯 syscall，无需 mingw-w64）
-wails3 task windows:build ARCH=amd64
+wails3 task windows:build:all      # 一次产出 amd64 + arm64
+wails3 task windows:build ARCH=arm64   # 或单架构
 
-# Linux（需要 GTK3 / WebKitGTK 4.1 开发库，见下）
+# Linux（需要 GTK3 / WebKitGTK 4.1 开发库，见下；ARCH 可选 amd64 / arm64）
 wails3 task linux:build ARCH=amd64 EXTRA_TAGS=gtk3
 wails3 task linux:package          # 把 build/bin/ClipSync 打成 AppImage
 ```
 
 > Windows 下所有日志会写入 `%USERPROFILE%\.clipsync\app.log`。
-> macOS 上构建 Linux 版走 Docker：`sh build/linux/build_in_docker.sh`。
+> macOS 上构建 Linux 版走 Docker：`sh build/linux/build_in_docker.sh [amd64|arm64]`。
 
 Linux 构建依赖（Debian/Ubuntu 为例）：
 

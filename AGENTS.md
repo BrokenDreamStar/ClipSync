@@ -8,8 +8,9 @@
 wails3 dev                 # 开发模式（Vite 热重载 + Go 重编译，读 build/config.yml）
 wails3 task build          # 构建当前平台，产物在 build/bin/
 wails3 task darwin:package:universal   # macOS 通用 .app（arm64+amd64 lipo 合并）
-wails3 task windows:build ARCH=amd64   # Windows 交叉编译（纯 syscall，无需 mingw）
-wails3 task linux:build ARCH=amd64 EXTRA_TAGS=gtk3   # Linux（见下）
+wails3 task windows:build:all          # Windows amd64+arm64 双架构（纯 syscall，无需 mingw）
+wails3 task windows:build ARCH=amd64  # Windows 单架构（ARCH 可选 amd64/arm64）
+wails3 task linux:build ARCH=amd64 EXTRA_TAGS=gtk3   # Linux（ARCH 可选 amd64/arm64，见下）
 go test ./...             # Go 测试（集中在 internal/engine）
 go test ./internal/engine -run TestPairing   # 聚焦单个测试
 cd frontend && npm run build      # 含 vue-tsc --noEmit 类型检查，是前端的 lint+typecheck
@@ -22,7 +23,7 @@ cd frontend && npx vue-tsc --noEmit  # 仅类型检查
 - 纯浏览器预览 UI（无需 Wails）：`cd frontend && npm run dev` 后打开 `http://localhost:5173/preview.html`（mock 入口 `main.preview.ts`，通过 `@wailsio/runtime` 的官方 `setTransport` 钩子按方法名路由 mock 数据）。
 - Windows 构建是纯 syscall 交叉编译（`CGO_ENABLED=0`），**不再需要 mingw-w64**；图标/版本资源由 `build/windows/Taskfile.yml` 的 `generate:syso` 从 `build/windows/icon.ico` + `info.json` 生成。
 - Linux 构建需 GTK3 / WebKitGTK 4.1 开发库（`sudo apt install libgtk-3-dev libwebkit2gtk-4.1-dev`），且必须带 `EXTRA_TAGS=gtk3`（v3 以该标签选 GTK3/WebKitGTK-4.1 后端，默认后端是 GTK4/WebKitGTK-6.0；v2 时代的 `webkit2_41` 标签已废弃）。AppImage：`wails3 task linux:package`。Linux 只能在 Linux 环境（或 CI）上构建，macOS 无法交叉编译。
-- **macOS 上构建 Linux 版走 Docker**：`sh build/linux/build_in_docker.sh`（amd64 ubuntu:24.04 镜像，与 CI 同构；Apple Silicon 依赖 Docker Desktop/OrbStack 的 Rosetta 转译）。脚本串起 4 步：`wails3 task linux:build` → `go vet` → `go test` → `build_appimage.sh`。AppImage 阶段在 Docker Desktop on Apple Silicon 上**会自动跳过**（其 x86_64 emulation 不翻译 `appimagetool` 这类 type-1 非 PIE ELF），由 CI/Linux runner 接管。真正要在 macOS 本机出 AppImage：用 OrbStack（QEMU 全模拟更稳）、Linux VM、WSL2，或直接 push 触发 CI。`frontend/node_modules` / `go-build` 用 named volume 缓存、不会污染宿主机 arm64 依赖。
+- **macOS 上构建 Linux 版走 Docker**：`sh build/linux/build_in_docker.sh [amd64|arm64]`（ubuntu:24.04 镜像，与 CI 同构，默认 amd64）。amd64 容器在 Apple Silicon 上依赖 Docker Desktop/OrbStack 的 Rosetta 转译；**arm64 容器原生运行**，Apple Silicon 上本地即可产出 aarch64 AppImage（Intel Mac 上 arm64 走 QEMU 全模拟，慢但可用）。脚本串起 4 步：`wails3 task linux:build` → `go vet` → `go test` → `build_appimage.sh`。AppImage 阶段在 **amd64 转译容器**里会自动跳过（Rosetta 不翻译 `appimagetool` 这类 type-1 非 PIE ELF），由 CI/Linux runner 接管；arm64 原生容器无此问题。`node_modules` / `go-build` 按架构分 named volume 缓存（esbuild / Go 编译缓存都架构相关）、`gomod` 跨架构共用，不会污染宿主机依赖。
 
 ## 架构与层次边界
 
@@ -54,6 +55,6 @@ cd frontend && npx vue-tsc --noEmit  # 仅类型检查
 ## 提交与发布约定
 
 - 提交信息：`feat:` / `fix:` / `style:` / `ci:` / `chore:` 前缀 + 中文描述。
-- 日常开发在 `dev` 分支；push 到 `main` 触发 `.github/workflows/release.yml` 构建 macOS DMG、Windows EXE 与 Linux AppImage 并发 release。
+- 日常开发在 `dev` 分支；push 到 `main` 触发 `.github/workflows/release.yml` 构建五平台产物并发 release：macOS DMG（universal）、Windows EXE（amd64 + arm64，同一 amd64 runner 交叉编译）、Linux AppImage（x86_64 + aarch64，arm64 走 GitHub 公开仓库免费的 `ubuntu-24.04-arm` 原生 runner）。
 - release 任务会在 Release 资产里附带 `latest.json` 更新清单（应用内更新器读取它；产物名必须保持 `ClipSync-<版本>-<平台键><扩展名>` 命名，`internal/updater/manifest.go` 按此校验，两边改动需同步 `updater_test.go` 里的 TestParseCISample）。
 - 用户可见的变更需在 `CHANGELOG.md` 的 `[Unreleased]` 下追加中文条目（Keep a Changelog 格式）。

@@ -12,6 +12,21 @@ tasks:
           ARCH: '{{.ARCH}}'
           DEV: '{{.DEV}}'
           EXTRA_TAGS: '{{.EXTRA_TAGS}}'
+          OUTPUT: '{{.OUTPUT}}'
+
+  build:all:
+    summary: 一次产出 amd64 + arm64 双架构 EXE（build/bin/ClipSync-<arch>.exe）
+    # cmds 顺序执行（不用并行 deps）：build:native 结束时清理 *.syso，
+    # 并行的话一个架构的清理可能删掉另一个架构尚未链接的 syso。
+    cmds:
+      - task: build:native
+        vars:
+          ARCH: amd64
+          OUTPUT: '{{.BIN_DIR}}/{{.APP_NAME}}-amd64.exe'
+      - task: build:native
+        vars:
+          ARCH: arm64
+          OUTPUT: '{{.BIN_DIR}}/{{.APP_NAME}}-arm64.exe'
 
   build:native:
     summary: 交叉编译 Windows（v3 Windows 后端为纯 syscall，无 CGO 依赖）
@@ -29,13 +44,15 @@ tasks:
       - task: generate:syso
         vars:
           ARCH: '{{.ARCH}}'
-      - go build {{.BUILD_FLAGS}} -o "{{.BIN_DIR}}/{{.APP_NAME}}.exe"
+      - go build {{.BUILD_FLAGS}} -o "{{.OUTPUT}}"
       - cmd: rm -f *.syso
         platforms: [linux, darwin]
       - cmd: powershell Remove-item *.syso
         platforms: [windows]
     vars:
       BUILD_FLAGS: '{{if eq .DEV "true"}}{{if .EXTRA_TAGS}}-tags {{.EXTRA_TAGS}} {{end}}-buildvcs=false -gcflags=all="-l"{{else}}-tags production{{if .EXTRA_TAGS}},{{.EXTRA_TAGS}}{{end}} -trimpath -buildvcs=false -ldflags="-w -s -H windowsgui"{{end}}'
+      DEFAULT_OUTPUT: '{{.BIN_DIR}}/{{.APP_NAME}}.exe'
+      OUTPUT: '{{ .OUTPUT | default .DEFAULT_OUTPUT }}'
     env:
       GOOS: windows
       CGO_ENABLED: 0

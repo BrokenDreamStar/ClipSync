@@ -23,6 +23,7 @@ const manifestTimeout = 10 * time.Second
 var knownPlatforms = map[string]string{
 	"macos-universal": ".dmg",
 	"windows-amd64":   ".exe",
+	"windows-arm64":   ".exe",
 	"linux-x86_64":    ".AppImage",
 	"linux-aarch64":   ".AppImage",
 }
@@ -52,8 +53,11 @@ func PlatformKey() (string, error) {
 		// macOS 只发布 universal（arm64 + amd64 lipo 合并）。
 		return "macos-universal", nil
 	case "windows":
-		if runtime.GOARCH == "amd64" {
+		switch runtime.GOARCH {
+		case "amd64":
 			return "windows-amd64", nil
+		case "arm64":
+			return "windows-arm64", nil
 		}
 	case "linux":
 		switch runtime.GOARCH {

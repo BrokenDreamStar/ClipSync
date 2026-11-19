@@ -25,7 +25,7 @@ import (
 var assets embed.FS
 
 // buildConfig 内嵌构建配置，运行时解析 info.version 作为应用版本号
-//（更新器比较版本用）。与 Info.plist / Windows syso 同源，且 go build /
+// （更新器比较版本用）。与 Info.plist / Windows syso 同源，且 go build /
 // go test 产物始终拿得到，无需 ldflags 注入；AboutView 的硬编码版本由此消掉。
 //
 //go:embed build/config.yml
@@ -35,7 +35,7 @@ var buildConfig []byte
 var versionRe = regexp.MustCompile(`(?m)^[ \t]+version:[ \t]*"([0-9]+\.[0-9]+\.[0-9]+)"`)
 
 // appVersionFromConfig 从内嵌 config.yml 解析版本号；解析失败返回空串
-//（更新检查会以「版本号缺失」失败，而不是误判）。
+// （更新检查会以「版本号缺失」失败，而不是误判）。
 func appVersionFromConfig(data []byte) string {
 	m := versionRe.FindSubmatch(data)
 	if m == nil {
@@ -137,8 +137,8 @@ func main() {
 
 	bgR, bgG, bgB := backgroundColorFor(cfg.Theme)
 	window := wailsApp.Window.NewWithOptions(application.WebviewWindowOptions{
-		Name:  "main",
-		Title: "ClipSync",
+		Name:   "main",
+		Title:  "ClipSync",
 		Width:  880,
 		Height: 560,
 		// Windows / Linux 去掉系统原生标题栏，与 macOS 的 TitleBarHidden 观感一致；
