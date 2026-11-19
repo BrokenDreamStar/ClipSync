@@ -148,9 +148,11 @@ jobs:
       # v2 时代的 webkit2_41 标签已废弃）。wl-clipboard 会被打进 AppImage，
       # 供纯 Wayland 会话下剪贴板回退使用。
       - name: 安装 Linux 构建依赖
+        # Acquire::Retries：Ubuntu 官方源偶发 503 / 连接失败（v0.1.2 发布时
+        # 实测整步失败、重跑即好），多试几次避免瞬时镜像故障拖垮整次发布。
         run: |
-          sudo apt-get update
-          sudo apt-get install -y libgtk-3-dev libwebkit2gtk-4.1-dev wl-clipboard
+          sudo apt-get update -o Acquire::Retries=3
+          sudo apt-get install -y -o Acquire::Retries=3 libgtk-3-dev libwebkit2gtk-4.1-dev wl-clipboard
 
       - name: 安装 Wails3 CLI
         # wails3 CLI 自身编译 internal/operatingsystem 时按构建标签选 Linux 后端：
