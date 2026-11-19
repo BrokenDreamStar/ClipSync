@@ -5,6 +5,12 @@
 
 ## [Unreleased]
 
+## [0.1.1] - 2026-11-19
+
+### 修复
+
+- **macOS 菜单栏图标过大**：Wails v3 会把托盘图片缩放到菜单栏厚度（≈24pt），此前直接复用 256px 的彩色 `tray.png`，图标比 v2 时期大一圈且形状变成应用图标剪影。现改用专用模板图标 `tray-darwin.png`（SF Symbol `doc.on.clipboard` 导出，24pt 画布 / 18pt 内容居中），视觉尺寸与形状均与 v2 一致，并继续自动跟随系统明暗反色。
+
 ### 变更
 
 - **更新检查的网络报错不再暴露细节**：连不上 GitHub 时界面统一显示「无法连接 GitHub，请检查网络后重试」，拨号超时、代理拒绝等底层原因只写日志（Windows 在 `%USERPROFILE%\.clipsync\app.log`），不再把内网地址、代理配置等信息直接展示给用户。
@@ -94,7 +100,8 @@
 - 系统托盘（macOS NSStatusItem / Windows systray），关闭窗口后驻留后台
 - 手动配对 IP/端口兜底入口
 
-[Unreleased]: https://github.com/BrokenDreamStar/ClipSync/compare/v0.1.0...HEAD
+[Unreleased]: https://github.com/BrokenDreamStar/ClipSync/compare/v0.1.1...HEAD
+[0.1.1]: https://github.com/BrokenDreamStar/ClipSync/compare/v0.1.0...v0.1.1
 [0.1.0]: https://github.com/BrokenDreamStar/ClipSync/compare/v0.0.4...v0.1.0
 [0.0.4]: https://github.com/BrokenDreamStar/ClipSync/compare/v0.0.3...v0.0.4
 [0.0.3]: https://github.com/BrokenDreamStar/ClipSync/compare/v0.0.2...v0.0.3

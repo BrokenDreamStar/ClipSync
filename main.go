@@ -185,9 +185,12 @@ func main() {
 		tray := wailsApp.SystemTray.New()
 		tray.SetTooltip("ClipSync — 局域网剪贴板同步")
 		if runtime.GOOS == "darwin" {
-			// 模板图标：菜单栏单色剪贴板形状，自动跟随系统明暗反色
-			// （v2 用 SF Symbol doc.on.clipboard 的模板语义）。
-			tray.SetTemplateIcon(trayBytes)
+			// 模板图标：菜单栏单色剪贴板形状，自动跟随系统明暗反色。
+			// 用专门的 tray-darwin.png（24pt 画布、18pt 内容居中）而不是彩色
+			// tray.png：v3 会把整图缩放到菜单栏 thickness（≈24pt），用彩色图
+			// 会满幅渲染，观感比 v2 的 18pt 图标大一圈、形状也不一致
+			// （v2 是 SF Symbol doc.on.clipboard 线稿）。
+			tray.SetTemplateIcon(trayDarwinBytes)
 		} else {
 			tray.SetIcon(trayBytes)
 		}
