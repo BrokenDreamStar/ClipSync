@@ -175,6 +175,13 @@ export function SetTheme(theme: string): $CancellablePromise<string> {
 
 /**
  * ShowMainWindow 由托盘菜单"打开主窗口"调用。
+ * setAppRegular(true)：主窗口可见期间应用按常规应用呈现（进 Dock / Cmd+Tab，
+ * 用户开窗后能被 Cmd+Tab 切回）；关窗时由 WindowClosing 钩子切回 Accessory。
+ * Focus 是置前聚焦的关键：accessory 应用从托盘点开窗口时，Show 只做
+ * makeKeyAndOrderFront，应用本身不激活，窗口会留在其它应用窗口之下且没有
+ * 键盘焦点；v3.0.0 的 Focus（windowFocus）会在应用非 active 时先
+ * activateIgnoringOtherApps:YES 再 makeKeyAndOrderFront + makeKeyWindow，
+ * 等价于常规应用点 Dock 图标的行为。三平台实现均存在，无需按 GOOS 分支。
  */
 export function ShowMainWindow(): $CancellablePromise<void> {
     return $Call.ByName("main.App.ShowMainWindow");

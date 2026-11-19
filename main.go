@@ -169,7 +169,7 @@ func main() {
 			return
 		}
 		event.Cancel()
-		window.Hide()
+		svc.hideToTray()
 	})
 
 	// 托盘：Wails v3 内置 SystemTray。Linux 后端是纯 Go DBus
@@ -177,6 +177,24 @@ func main() {
 	// 调度，无第二 gtk_main 冲突）；macOS / Windows 各自原生实现。
 	// 必须等 ApplicationStarted 再创建：此时主循环已就绪。
 	wailsApp.Event.OnApplicationEvent(events.Common.ApplicationStarted, func(*application.ApplicationEvent) {
+		// 未开「启动时最小化」时窗口随启动自显：同样按常规应用呈现并聚焦
+		// 一次——accessory 启动路径 Wails 不会激活应用，不补 Focus 的话
+		// 窗口会以无键盘焦点的状态出现（与托盘开窗同理）。
+		//
+		// 注意延迟 200ms：darwin 上 Common.ApplicationStarted 是 Wails 把
+		// DidFinishLaunching 经 setupCommonEvents 重新入队的镜像事件，与
+		// Wails 内部的 setActivationPolicy(Accessory) 监听器分属两个
+		// goroutine 并发执行（webview 见 event_manager.go 的 per-event
+		// goroutine），直接切 Regular 会被内部的 Accessory 覆盖（竞态，
+		// 实测 debug 构建能赢、production 构建必输）。启动监听器全是
+		// 微秒级内存调用，200ms 后必然完成，此后切换即为最终态。
+		if !cfg.StartMinimized {
+			time.AfterFunc(200*time.Millisecond, func() {
+				setAppRegular(true)
+				window.Focus()
+			})
+		}
+
 		menu := wailsApp.NewMenu()
 		menu.Add("打开主窗口").OnClick(func(*application.Context) { svc.ShowMainWindow() })
 		menu.AddSeparator()
@@ -198,7 +216,12 @@ func main() {
 		// 与 v2 一致：单击（macOS 菜单栏惯例）与右键都弹出菜单。
 		tray.OnClick(func() { tray.ShowMenu() })
 		tray.OnRightClick(func() { tray.ShowMenu() })
-		tray.Run()
+		// 不调 tray.Run()：SystemTray.New() 在 app 已运行（ApplicationStarted
+		// 回调里必然如此）时会立即自跑；再显式 Run() 会经 runOrDeferToAppRun
+		// 生成第二个 impl，其 nsStatusItem 为空绕过防重入守卫，多注册一个
+		// 无图标的幽灵 NSStatusItem——点击真图标时菜单和高亮背景都会落在
+		// 它身上（视觉上"背景跑到图标左侧"）。app 未运行时 Run() 是空操作，
+		// 创建工作由 pendingRun 接管，因此两个路径下都不需要显式 Run()。
 	})
 
 	// 引擎在订阅就位、Wails app 注入完成后启动，此后的事件都能安全 emit。

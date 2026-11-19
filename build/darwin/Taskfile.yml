@@ -82,6 +82,12 @@ tasks:
       - cp build/darwin/icons.icns "{{.BIN_DIR}}/{{.APP_NAME}}.app/Contents/Resources/icons.icns"
       - cp "{{.BIN_DIR}}/{{.APP_NAME}}" "{{.BIN_DIR}}/{{.APP_NAME}}.app/Contents/MacOS"
       - cp build/darwin/Info.plist "{{.BIN_DIR}}/{{.APP_NAME}}.app/Contents"
+      # LSUIElement：让 LaunchServices 从出生就把应用注册为 UIElement（不进
+      # Dock / Cmd+Tab）。用 -replace 兜底：Info.plist 由
+      # common:update:build-assets 渲染，重新生成可能丢掉手改的键。
+      # 必须在 codesign 之前执行——签名后改 .app 内容会破坏 sealed resource
+      # （v0.1.0 的 icns 事故同类）。
+      - plutil -replace LSUIElement -bool true "{{.BIN_DIR}}/{{.APP_NAME}}.app/Contents/Info.plist"
       - xattr -cr "{{.BIN_DIR}}/{{.APP_NAME}}.app"
       - codesign --force --deep --sign - "{{.BIN_DIR}}/{{.APP_NAME}}.app"
 

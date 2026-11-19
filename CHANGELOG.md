@@ -3,7 +3,13 @@
 本文件记录 ClipSync 的版本变更。格式参考 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)，
 版本号遵循 [语义化版本](https://semver.org/lang/zh-CN/)。
 
-## [Unreleased]
+## [0.1.3] - 2026-11-19
+
+### 修复
+
+- **macOS 托盘「打开主窗口」后窗口不置前、不聚焦**：纯托盘应用（accessory）从托盘点开窗口时，`Show()` 只做 `makeKeyAndOrderFront`，应用本身不激活，窗口会留在其它应用窗口之下且没有键盘焦点。现在打开主窗口时先切为常规应用再 `Focus()`（应用非 active 时先 `activateIgnoringOtherApps:YES` 再置前并设为 key window），窗口稳定出现在前台并可直接键入。
+- **macOS 主窗口可见性现在与 Dock / Cmd+Tab 呈现联动**：此前应用要么始终不进 Cmd+Tab（开窗后无法被 Cmd+Tab 切回），要么运行中 policy 被系统翻成 Foreground 后关窗仍赖在列表里不走。现改为：主窗口打开期间以常规应用呈现（进 Dock 与 Cmd+Tab），关闭窗口（隐藏回托盘）时立即切回 accessory 消失。Info.plist 声明 `LSUIElement`（打包时 `plutil -replace` 注入，防模板重新生成丢失；进程出生即 UIElement），运行时按窗口可见性用 `setActivationPolicy` 动态切换——该 API 是 Apple 文档支持的 LSUIElement 应用动态显隐 Dock 图标的标准途径，关窗时的显式切回也不再依赖系统自觉。
+- **macOS 菜单栏点击时高亮背景错位到图标左侧**：托盘在 `ApplicationStarted` 回调里创建时应用已在运行，`SystemTray.New()` 内部就会立即启动托盘，随后的显式 `tray.Run()` 会再生成第二个实现对象——其 `nsStatusItem` 为空绕过防重入守卫，多注册一个无图标的"幽灵" NSStatusItem，且点击事件路由被它接管，点击图标时菜单与高亮背景都落在幽灵上。删除显式 `tray.Run()`（app 未运行时它本就是空操作，启动时由 pendingRun 统一接管）。该问题在 Windows / Linux 上同样存在（会显示两个托盘图标），一并修复。
 
 ## [0.1.2] - 2026-11-19
 
@@ -16,10 +22,6 @@
 
 - **应用内更新下载完成即报错（`file already closed`）**：下载完成时先把文件句柄关闭再 `Sync()`，对已关闭的文件同步必然失败——自更新功能落地以来从未成功走完过一次（0.1.1 实测触发）。改为先 `Sync()` 落盘再关闭，并补下载路径回归测试（httptest 走完整下载 + 大小 / sha256 / 文件头校验链）。注意：0.1.1 及更早版本内置的更新器仍带此 bug，本版本需手动下载安装一次，此后自更新才能正常使用。
 - **设置页「启动时最小化」开关可能未反映已保存配置**：`startMinimized` 的声明位于 `immediate` watch 之后，首次进入设置页（配置已由其他视图加载）时回调会因 TDZ 报错而跳过赋值。已把声明前移。
-
-### 修复
-
-- **应用内更新下载完成即报错（`file already closed`）**：下载完成时先把文件句柄关闭再 `Sync()`，对已关闭的文件同步必然失败——自更新功能落地以来从未成功走完过一次（0.1.1 实测触发）。改为先 `Sync()` 落盘再关闭，并补下载路径回归测试（httptest 走完整下载 + 大小 / sha256 / 文件头校验链）。注意：0.1.1 及更早版本内的更新器仍带此 bug，下一个版本需手动下载安装一次，此后自更新才能正常使用。
 
 ## [0.1.1] - 2026-11-19
 
