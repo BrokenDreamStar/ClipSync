@@ -7,6 +7,12 @@
 
 ## [0.1.0] - 2026-11-19
 
+> 同日重发：首发 macOS DMG 因签名封印被破坏、Gatekeeper 判「已损坏」无法启动，修复后已重新发布；Windows EXE 与 Linux AppImage 首发产物不受影响。
+
+### 修复
+
+- **macOS 下载版无法启动（首发 DMG 回归）**：CI 在 ad-hoc 签名**之后**用 `build_icns.sh` 覆盖 `.app` 内的 `icons.icns`，破坏了代码签名封印（`codesign --verify` 报 sealed resource is missing or invalid）。从浏览器下载的 DMG 带 Gatekeeper 隔离属性，无效签名直接被判「已损坏，无法打开」。修复：`build_icns.sh` 覆盖 icns 后重新 ad-hoc 签名，CI 在打包 DMG 前增加 `codesign --verify` 门禁拦截同类回归。注意：未做 Developer ID 签名与公证前，下载版首次打开仍需在「系统设置 → 隐私与安全性」中点击「仍要打开」。
+
 ### 新增
 
 - **应用内更新（GitHub Releases）**：「关于」页新增软件更新卡片——检查 GitHub 最新版本、一键下载安装并自动重启。启动时也会静默检查一次，发现新版本时通过 toast 提示并引导到「关于」页。
@@ -82,7 +88,8 @@
 - 系统托盘（macOS NSStatusItem / Windows systray），关闭窗口后驻留后台
 - 手动配对 IP/端口兜底入口
 
-[Unreleased]: https://github.com/BrokenDreamStar/ClipSync/compare/v0.0.4...HEAD
+[Unreleased]: https://github.com/BrokenDreamStar/ClipSync/compare/v0.1.0...HEAD
+[0.1.0]: https://github.com/BrokenDreamStar/ClipSync/compare/v0.0.4...v0.1.0
 [0.0.4]: https://github.com/BrokenDreamStar/ClipSync/compare/v0.0.3...v0.0.4
 [0.0.3]: https://github.com/BrokenDreamStar/ClipSync/compare/v0.0.2...v0.0.3
 [0.0.2]: https://github.com/BrokenDreamStar/ClipSync/compare/v0.0.1...v0.0.2

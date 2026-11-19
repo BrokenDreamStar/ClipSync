@@ -39,3 +39,11 @@ sips -z 1024 1024 "$SRC" --out "$WORK/icon_512x512@2x.png" >/dev/null
 
 iconutil -c icns "$WORK" -o "$OUT"
 echo "[build_icns] 重新生成 $OUT (含 @1x + @2x 全尺寸)"
+
+# 覆盖 .app 内已封印的资源会让签名校验失败（codesign --verify 报
+# sealed resource is missing or invalid）。带隔离属性的下载版会被
+# Gatekeeper 判为「已损坏」而拒绝启动（v0.1.0 曾因此全军覆没），
+# 所以覆盖后必须重新 ad-hoc 签名。
+APP_BUNDLE="${ROOT}/build/bin/ClipSync.app"
+codesign --force --deep --sign - "$APP_BUNDLE"
+echo "[build_icns] 已重新 ad-hoc 签名 $APP_BUNDLE"

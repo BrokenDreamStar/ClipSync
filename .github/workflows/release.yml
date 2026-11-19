@@ -37,8 +37,15 @@ jobs:
 
       # wails3 generate icons 的 icns 缺 @1x 小尺寸，Finder 低 DPI 视图会退化，
       # 用 build_icns.sh 重打全尺寸并覆盖 .app 内的 icons.icns。
+      # 覆盖已封印资源会破坏签名（v0.1.0 的 DMG 因此被 Gatekeeper 判为
+      # 「已损坏」无法启动），脚本末尾会重新 ad-hoc 签名。
       - name: 重新生成 .app 图标
         run: sh build/darwin/build_icns.sh
+
+      # 门禁：打包产物必须是「签名有效」的。任何在签名之后修改 .app 内容的
+      # 步骤都会在这里红灯，避免「已损坏」版本再次发布。
+      - name: 校验 .app 签名封印
+        run: codesign --verify --deep --verbose=2 build/bin/ClipSync.app
 
       - name: 打包 DMG
         shell: bash
@@ -84,27 +91,43 @@ jobs:
       - name: 安装 Wails3 CLI
         run: go install github.com/wailsapp/wails/v3/cmd/wails3@v3.0.0
 
-      # v3 Windows 后端为纯 syscall（CGO_ENABLED=0），无需 mingw 交叉工具链。
-      # generate:syso 会把 icon.ico / 版本资源 / 清单编进 exe（替代 v2 winres.json）。
-      - name: 构建 Windows amd64
-        run: wails3 task windows:build ARCH=amd64
+      # v3 Windows 后端为纯 syscall（CGO_ENABLED=0），amd64 / arm64 都可在
+      # amd64 runner 交叉编译，无需 mingw 工具链。generate:syso 把 icon.ico /
+      # 版本资源 / 清单编进 exe（替代 v2 winres.json）；build:all 一次产出两个
+      # 架构（build:native 顺序执行、各自清理 syso，前端只构建一次）。
+      - name: 构建 Windows amd64 + arm64
+        run: wails3 task windows:build:all
 
       - name: 重命名产物 (带版本号)
         shell: bash
         run: |
           VERSION="$(sed -n 's/^  version: "\(.*\)"$/\1/p' build/config.yml | head -n1)"
-          mv build/bin/ClipSync.exe "build/bin/ClipSync-${VERSION}-windows-amd64.exe"
+          mv build/bin/ClipSync-amd64.exe "build/bin/ClipSync-${VERSION}-windows-amd64.exe"
+          mv build/bin/ClipSync-arm64.exe "build/bin/ClipSync-${VERSION}-windows-arm64.exe"
 
       - name: 上传 EXE 产物
         uses: actions/upload-artifact@v4
         with:
           name: ClipSync-windows
-          path: build/bin/ClipSync-*-windows-amd64.exe
+          path: build/bin/ClipSync-*-windows-*.exe
           if-no-files-found: error
 
   build-linux:
-    name: 构建 Linux AppImage
-    runs-on: ubuntu-latest
+    name: 构建 Linux AppImage (${{ matrix.arch }})
+    strategy:
+      fail-fast: false
+      matrix:
+        # arm64 用 GitHub 公开仓库免费提供的 arm64 原生 runner（无 QEMU 模拟），
+        # 与 amd64 同构构建；Linux 无法交叉编译（需目标架构的 GTK 开发库），
+        # 两个架构各在各的原生环境上跑同一套命令。
+        include:
+          - arch: amd64
+            runner: ubuntu-24.04
+            appimagetool_arch: x86_64
+          - arch: arm64
+            runner: ubuntu-24.04-arm
+            appimagetool_arch: aarch64
+    runs-on: ${{ matrix.runner }}
     steps:
       - name: 检出代码
         uses: actions/checkout@v4
@@ -135,18 +158,19 @@ jobs:
         # 带 gtk3 标签才与 apt 步骤装的库匹配（与下文应用构建的 EXTRA_TAGS=gtk3 同理）。
         run: go install -tags gtk3 github.com/wailsapp/wails/v3/cmd/wails3@v3.0.0
 
-      # appimagetool 不在 Ubuntu 24.04 apt 仓库：从 AppImageKit 持续构建桶下载。
-      # 用 /releases/download/continuous/ 而非 /latest/download/，后者在某些代理
-      # 环境会被改写到不存在的 S3 对象、返回 404。
+      # appimagetool 不在 Ubuntu 24.04 apt 仓库：从 AppImageKit 持续构建桶下载，
+      # 架构跟随矩阵（x86_64 / aarch64）。用 /releases/download/continuous/ 而非
+      # /latest/download/，后者在某些代理环境会被改写到不存在的 S3 对象、返回 404。
       - name: 安装 appimagetool
         run: |
           sudo curl -fsSL -o /usr/local/bin/appimagetool \
-            https://github.com/AppImage/AppImageKit/releases/download/continuous/appimagetool-x86_64.AppImage
+            https://github.com/AppImage/AppImageKit/releases/download/continuous/appimagetool-${{ matrix.appimagetool_arch }}.AppImage
           sudo chmod 755 /usr/local/bin/appimagetool
           appimagetool --appimage-version || true
 
-      - name: 构建 Linux amd64
-        run: wails3 task linux:build ARCH=amd64 EXTRA_TAGS=gtk3
+      # build_appimage.sh 用 uname -m 探测架构，产物名自动带 aarch64 后缀。
+      - name: 构建 Linux ${{ matrix.arch }}
+        run: wails3 task linux:build ARCH=${{ matrix.arch }} EXTRA_TAGS=gtk3
 
       - name: 打包 AppImage
         run: sh build/linux/build_appimage.sh
@@ -154,7 +178,7 @@ jobs:
       - name: 上传 AppImage 产物
         uses: actions/upload-artifact@v4
         with:
-          name: ClipSync-linux
+          name: ClipSync-linux-${{ matrix.arch }}
           path: build/bin/ClipSync-*-linux-*.AppImage
           if-no-files-found: error
 
@@ -205,8 +229,10 @@ jobs:
             add "$1" "${hits[0]}"
           }
           collect macos-universal 'artifacts/ClipSync-macos/*.dmg'
-          collect windows-amd64  'artifacts/ClipSync-windows/*.exe'
-          collect linux-x86_64   'artifacts/ClipSync-linux/*.AppImage'
+          collect windows-amd64  'artifacts/ClipSync-windows/*windows-amd64.exe'
+          collect windows-arm64  'artifacts/ClipSync-windows/*windows-arm64.exe'
+          collect linux-x86_64   'artifacts/ClipSync-linux-amd64/*.AppImage'
+          collect linux-aarch64  'artifacts/ClipSync-linux-arm64/*.AppImage'
           jq -n --arg t "v${VERSION}" --arg v "${VERSION}" \
             --arg ts "$(date -u +%Y-%m-%dT%H:%M:%SZ)" --argjson a "$assets" \
             '{schema: 1, tag: $t, version: $v, publishedAt: $ts, assets: $a}' \
