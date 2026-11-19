@@ -2,6 +2,7 @@ package updater
 
 import (
 	"encoding/json"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -274,6 +275,19 @@ func TestParseCISample(t *testing.T) {
 	}
 	if len(m.Assets) != 5 || m.AssetFor("windows-arm64") == nil || m.AssetFor("linux-aarch64") == nil {
 		t.Fatalf("解析结果不对：%+v", m)
+	}
+}
+
+// TestNetFailure 锁定 UI 报错契约：网络层错误对用户只有固定文案，
+// 底层细节（拨号地址 / 代理错误等）只允许出现在日志里，不允许进入前端展示。
+func TestNetFailure(t *testing.T) {
+	leaky := fmt.Errorf("dial tcp 203.0.113.7:443: i/o timeout (proxy refused)")
+	err := netFailure("下载安装包", leaky)
+	if err == nil || err.Error() != "无法连接 GitHub，请检查网络后重试" {
+		t.Fatalf("netFailure 返回了意外文案：%v", err)
+	}
+	if strings.Contains(err.Error(), "203.0.113.7") || strings.Contains(err.Error(), "timeout") {
+		t.Fatal("netFailure 的返回值不得夹带底层错误细节")
 	}
 }
 

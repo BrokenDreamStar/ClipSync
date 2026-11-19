@@ -322,7 +322,7 @@ func downloadAsset(asset *Asset, tag string) (string, error) {
 	req.Header.Set("User-Agent", fmt.Sprintf("ClipSync/%s", AppVersion))
 	resp, err := client.Do(req)
 	if err != nil {
-		return "", fmt.Errorf("下载失败：%v", err)
+		return "", netFailure("下载安装包", err)
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusOK {
@@ -370,7 +370,8 @@ func downloadAsset(asset *Asset, tag string) (string, error) {
 			break
 		}
 		if rerr != nil {
-			return "", fmt.Errorf("下载中断：%v", rerr)
+			// 中途断流同样是网络问题（对端重置 / 代理掐断），只写日志、UI 用固定文案。
+			return "", netFailure("下载安装包", rerr)
 		}
 	}
 	st.Received = received

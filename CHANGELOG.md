@@ -5,6 +5,10 @@
 
 ## [Unreleased]
 
+### 变更
+
+- **更新检查的网络报错不再暴露细节**：连不上 GitHub 时界面统一显示「无法连接 GitHub，请检查网络后重试」，拨号超时、代理拒绝等底层原因只写日志（Windows 在 `%USERPROFILE%\.clipsync\app.log`），不再把内网地址、代理配置等信息直接展示给用户。
+
 ## [0.1.0] - 2026-11-19
 
 > 同日重发：首发 macOS DMG 因签名封印被破坏、Gatekeeper 判「已损坏」无法启动，修复后已重新发布；Windows EXE 与 Linux AppImage 首发产物不受影响。重发同时把 Release 矩阵从三平台扩展到五平台（Windows ARM64 + Linux aarch64）。

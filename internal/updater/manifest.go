@@ -4,8 +4,10 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
+	"log"
 	"net/http"
 	"net/url"
 	"os"
@@ -176,6 +178,14 @@ func isTrustedAssetURL(raw string) bool {
 	return host == "github.com" || strings.HasSuffix(host, ".githubusercontent.com")
 }
 
+// netFailure 统一处理「连不上 GitHub」类的报错：具体原因（拨号超时 / 代理拒绝 /
+// DNS 解析失败等）只写日志，UI 固定展示「无法连接 GitHub」——细节对用户没有
+// 可操作性，反而暴露网络环境。返回的错误会原样进入前端展示，别夹带底层 err。
+func netFailure(stage string, err error) error {
+	log.Printf("[updater] %s 连接失败：%v", stage, err)
+	return errors.New("无法连接 GitHub，请检查网络后重试")
+}
+
 // fetchManifest 拉取最新版本的 latest.json。
 // 地址是 GitHub 官方支持的稳定媒体资产链接，404 说明最新发布没带清单
 // （比如 0.0.4 及更早的手动发布），此时如实报错而不是误判「没有新版本」。
@@ -191,7 +201,7 @@ func fetchManifest(client *http.Client) (*Manifest, error) {
 	}
 	resp, err := client.Do(req)
 	if err != nil {
-		return nil, fmt.Errorf("无法连接 GitHub：%v", err)
+		return nil, netFailure("拉取更新清单", err)
 	}
 	defer resp.Body.Close()
 
