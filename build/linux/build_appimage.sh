@@ -1,8 +1,8 @@
 #!/bin/sh
-# 把 wails build 的 Linux 产物打成 AppImage。
+# 把 wails3 构建的 Linux 产物打成 AppImage。
 #
 # 前置：
-#   1. 已在 Linux 上完成 `wails build -platform linux/<arch> -tags webkit2_41`，
+#   1. 已在 Linux 上完成 `wails3 task linux:build ARCH=<arch> EXTRA_TAGS=gtk3`，
 #      产物位于 build/bin/ClipSync；
 #   2. PATH 中能找到 appimagetool（构建镜像 build/linux/Dockerfile 阶段
 #      已装到 /usr/local/bin；CI 也由 GitHub Action apt 步骤装）。
@@ -10,9 +10,9 @@
 set -eu
 cd "$(dirname "$0")/../.."
 
-VERSION="$(sed -n 's/.*"version": *"\([^"]*\)".*/\1/p' wails.json | head -n1)"
+VERSION="$(sed -n 's/^  version: "\(.*\)"$/\1/p' build/config.yml | head -n1)"
 if [ -z "$VERSION" ]; then
-  echo "无法从 wails.json 解析版本号" >&2
+  echo "无法从 build/config.yml 解析版本号" >&2
   exit 1
 fi
 
@@ -27,7 +27,7 @@ case "$ARCH" in
 esac
 
 if [ ! -x "build/bin/ClipSync" ]; then
-  echo "找不到 build/bin/ClipSync，请先执行 wails build -platform linux/$APPIMAGE_ARCH -tags webkit2_41" >&2
+  echo "找不到 build/bin/ClipSync，请先执行 wails3 task linux:build ARCH=$APPIMAGE_ARCH EXTRA_TAGS=gtk3" >&2
   exit 1
 fi
 

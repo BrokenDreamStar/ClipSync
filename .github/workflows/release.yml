@@ -27,16 +27,16 @@ jobs:
           cache: npm
           cache-dependency-path: frontend/package-lock.json
 
-      - name: 安装 Wails CLI
-        run: go install github.com/wailsapp/wails/v2/cmd/wails@v2.15.0
+      - name: 安装 Wails3 CLI
+        run: go install github.com/wailsapp/wails/v3/cmd/wails3@v3.0.0
 
-      - name: 安装前端依赖
-        working-directory: frontend
-        run: npm install
-
+      # task 依赖链自动完成：前端依赖安装 → 绑定生成 → 前端构建 → 图标 →
+      # amd64/arm64 双架构编译 → lipo 合并 → .app bundle + ad-hoc 签名。
       - name: 构建 macOS 通用版 (Apple Silicon + Intel)
-        run: wails build -platform darwin/universal
+        run: wails3 task darwin:package:universal
 
+      # wails3 generate icons 的 icns 缺 @1x 小尺寸，Finder 低 DPI 视图会退化，
+      # 用 build_icns.sh 重打全尺寸并覆盖 .app 内的 icons.icns。
       - name: 重新生成 .app 图标
         run: sh build/darwin/build_icns.sh
 
@@ -44,7 +44,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          VERSION="$(jq -r .version wails.json)"
+          VERSION="$(sed -n 's/^  version: "\(.*\)"$/\1/p' build/config.yml | head -n1)"
           STAGE="$(mktemp -d)"
           cp -R "build/bin/ClipSync.app" "$STAGE/"
           ln -s /Applications "$STAGE/Applications"
@@ -81,20 +81,18 @@ jobs:
           cache: npm
           cache-dependency-path: frontend/package-lock.json
 
-      - name: 安装 Wails CLI
-        run: go install github.com/wailsapp/wails/v2/cmd/wails@v2.15.0
+      - name: 安装 Wails3 CLI
+        run: go install github.com/wailsapp/wails/v3/cmd/wails3@v3.0.0
 
-      - name: 安装前端依赖
-        working-directory: frontend
-        run: npm install
-
+      # v3 Windows 后端为纯 syscall（CGO_ENABLED=0），无需 mingw 交叉工具链。
+      # generate:syso 会把 icon.ico / 版本资源 / 清单编进 exe（替代 v2 winres.json）。
       - name: 构建 Windows amd64
-        run: wails build -platform windows/amd64
+        run: wails3 task windows:build ARCH=amd64
 
       - name: 重命名产物 (带版本号)
         shell: bash
         run: |
-          VERSION="$(jq -r .version wails.json)"
+          VERSION="$(sed -n 's/^  version: "\(.*\)"$/\1/p' build/config.yml | head -n1)"
           mv build/bin/ClipSync.exe "build/bin/ClipSync-${VERSION}-windows-amd64.exe"
 
       - name: 上传 EXE 产物
@@ -123,23 +121,25 @@ jobs:
           cache: npm
           cache-dependency-path: frontend/package-lock.json
 
-      # Wails Linux 需要 GTK3 + WebKitGTK；ubuntu-latest (24.04) 只有 4.1 系列，
-      # 构建时需带 -tags webkit2_41（Wails CLI 不会自动探测）。
-      # wl-clipboard 的 wl-copy / wl-paste 会被 AppImage 内置，供纯 Wayland 会话使用。
+      # v3 Linux GTK3 后端 pkg-config：gtk+-3.0 + webkit2gtk-4.1（标签 gtk3；
+      # v2 时代的 webkit2_41 标签已废弃）。wl-clipboard 会被打进 AppImage，
+      # 供纯 Wayland 会话下剪贴板回退使用。
       - name: 安装 Linux 构建依赖
         run: |
           sudo apt-get update
           sudo apt-get install -y libgtk-3-dev libwebkit2gtk-4.1-dev wl-clipboard
 
-      - name: 安装 Wails CLI
-        run: go install github.com/wailsapp/wails/v2/cmd/wails@v2.15.0
+      - name: 安装 Wails3 CLI
+        run: go install github.com/wailsapp/wails/v3/cmd/wails3@v3.0.0
 
-      - name: 安装前端依赖
-        working-directory: frontend
-        run: npm install
+      - name: 安装 appimagetool
+        run: |
+          sudo curl -fsSL -o /usr/local/bin/appimagetool \
+            https://github.com/AppImage/AppImageKit/releases/download/continuous/appimagetool-x86_64.AppImage
+          sudo chmod 755 /usr/local/bin/appimagetool
 
       - name: 构建 Linux amd64
-        run: wails build -platform linux/amd64 -tags webkit2_41
+        run: wails3 task linux:build ARCH=amd64 EXTRA_TAGS=gtk3
 
       - name: 打包 AppImage
         run: sh build/linux/build_appimage.sh
@@ -161,12 +161,50 @@ jobs:
 
       - name: 解析版本号
         id: version
-        run: echo "version=$(jq -r .version wails.json)" >> "$GITHUB_OUTPUT"
+        run: |
+          VERSION="$(sed -n 's/^  version: "\(.*\)"$/\1/p' build/config.yml | head -n1)"
+          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
 
       - name: 下载构建产物
         uses: actions/download-artifact@v4
         with:
           path: artifacts
+
+      # 更新清单：应用内更新器（internal/updater）从
+      # releases/latest/download/latest.json 这个稳定地址读取它，一次请求拿到
+      # tag / 各平台产物名 / 大小 / sha256，不占 GitHub API 配额、不需要 token。
+      # 文件名必须符合更新器的命名校验：ClipSync-<版本>-<平台键><扩展名>。
+      - name: 生成更新清单 latest.json
+        shell: bash
+        run: |
+          set -euo pipefail
+          VERSION="${{ steps.version.outputs.version }}"
+          assets='[]'
+          add() { # $1=平台键 $2=产物路径
+            local platform="$1" file="$2" name size sha
+            name="$(basename "$file")"
+            size="$(stat -c%s "$file")"
+            sha="$(sha256sum "$file" | awk '{print $1}')"
+            assets="$(jq --arg p "$platform" --arg n "$name" --argjson s "$size" --arg h "$sha" \
+              '. + [{platform: $p, name: $n, size: $s, sha256: $h}]' <<<"$assets")"
+            echo "  $platform  $name  ${size} bytes  sha256 ${sha:0:12}…"
+          }
+          collect() { # $1=平台键 $2=glob —— 恰好一个产物，多个 / 缺失都报错
+            local hits=($2)
+            if [ "${#hits[@]}" -ne 1 ]; then
+              echo "平台 $1 应恰好有一个产物，实际 ${#hits[@]} 个：$2" >&2
+              exit 1
+            fi
+            add "$1" "${hits[0]}"
+          }
+          collect macos-universal 'artifacts/ClipSync-macos/*.dmg'
+          collect windows-amd64  'artifacts/ClipSync-windows/*.exe'
+          collect linux-x86_64   'artifacts/ClipSync-linux/*.AppImage'
+          jq -n --arg t "v${VERSION}" --arg v "${VERSION}" \
+            --arg ts "$(date -u +%Y-%m-%dT%H:%M:%SZ)" --argjson a "$assets" \
+            '{schema: 1, tag: $t, version: $v, publishedAt: $ts, assets: $a}' \
+            > artifacts/latest.json
+          cat artifacts/latest.json
 
       - name: 创建或更新 Release
         uses: softprops/action-gh-release@v2

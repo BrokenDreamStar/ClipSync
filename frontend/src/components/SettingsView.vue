@@ -2,7 +2,7 @@
 import { ref, watch, computed, onMounted } from 'vue'
 import Icon from './Icon.vue'
 import ToggleSwitch from './ToggleSwitch.vue'
-import { SaveConfig, GetAutostart, SetAutostart, SetStartMinimized } from '../wailsjs/go/main/App'
+import { SaveConfig, GetAutostart, SetAutostart, SetStartMinimized } from '../../bindings/clipsync/app'
 import { useAppState } from '../composables/useAppState'
 import { useToast } from '../composables/useToast'
 import { themeOptions, setThemePref, themePref, type ThemePref } from '../composables/useTheme'

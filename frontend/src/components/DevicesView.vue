@@ -2,7 +2,7 @@
 import { ref, computed, watch } from 'vue'
 import Icon from './Icon.vue'
 import ConfirmDialog from './ConfirmDialog.vue'
-import { RemovePeer, ScanNow, IsAddrOnline, PairWith, PairDiscovered, RespondPairRequest } from '../wailsjs/go/main/App'
+import { RemovePeer, ScanNow, IsAddrOnline, PairWith, PairDiscovered, RespondPairRequest } from '../../bindings/clipsync/app'
 import { useAppState } from '../composables/useAppState'
 import { useToast } from '../composables/useToast'
 
@@ -46,14 +46,10 @@ async function onScan() {
 }
 
 async function onPair(d: { device_id: string; name: string }) {
-  const peer = await PairDiscovered(d.device_id)
-  if (!peer) {
-    toast.err('配对失败')
-    return
-  }
-  // PairDiscovered 返回 (PeerView, string)：空串为成功，否则为错误信息。
-  if (typeof peer === 'string') {
-    toast.err(peer)
+  // PairDiscovered 返回 (PeerView, string) 元组：第二项空串为成功。
+  const [peer, err] = await PairDiscovered(d.device_id)
+  if (err) {
+    toast.err(err)
     return
   }
   toast.ok('配对成功：' + peer.name)
@@ -66,9 +62,9 @@ const advancedOpen = ref(false)
 async function onAddManual() {
   const addr = manualAddr.value.trim()
   if (!addr) return
-  const res = await PairWith(addr)
-  if (typeof res === 'string') {
-    toast.err('配对失败：' + res)
+  const [res, err] = await PairWith(addr)
+  if (err) {
+    toast.err('配对失败：' + err)
     return
   }
   manualAddr.value = ''

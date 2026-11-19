@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, watch, onBeforeUnmount } from 'vue'
 import Icon from './Icon.vue'
-import { CopyLocal, GetHistoryData } from '../wailsjs/go/main/App'
+import { CopyLocal, GetHistoryData } from '../../bindings/clipsync/app'
 import { useAppState, HistoryItem } from '../composables/useAppState'
 import { useToast } from '../composables/useToast'
 
@@ -18,7 +18,8 @@ async function ensureImageUrl(item: HistoryItem) {
   if (loadingImages.has(item.id)) return
   loadingImages.add(item.id)
   try {
-    const b64 = (await GetHistoryData(item.id)) as string
+    const [b64, getErr] = await GetHistoryData(item.id)
+    if (getErr || !b64) throw new Error(getErr || '记录不存在')
     const binary = atob(b64)
     const bytes = new Uint8Array(binary.length)
     for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i)

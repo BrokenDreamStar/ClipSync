@@ -1,13 +1,82 @@
 <script setup lang="ts">
+import { computed, onMounted, ref } from 'vue'
 import Icon from './Icon.vue'
 import appIcon from '../assets/appicon.png'
-import { BrowserOpenURL } from '../wailsjs/runtime/runtime'
+import ConfirmDialog from './ConfirmDialog.vue'
+import { Browser } from '@wailsio/runtime'
+import { useUpdate } from '../composables/useUpdate'
+import type { State } from '../../bindings/clipsync/internal/updater/models'
 
-// 版本号需与 wails.json 中的 productVersion 保持一致
-const version = '0.0.4'
+// 版本号不再硬编码：以 GetAppVersion 绑定（Go 侧内嵌 build/config.yml）为准，
+// 与 Info.plist / Windows syso 同源。
 const author = 'BrokenDream_Star'
 const repoURL = 'https://github.com/BrokenDreamStar/ClipSync'
 const licenseURL = 'https://www.gnu.org/licenses/lgpl-3.0.html'
+
+const { version, check, checking, updating, canApply, state, fmtBytes, checkUpdate, applyUpdate } =
+  useUpdate()
+
+const showConfirm = ref(false)
+
+// 打开「关于」时若无检查结果就补一次（启动时已静默检查过则直接展示）。
+onMounted(() => {
+  if (!check.value) void checkUpdate()
+})
+
+const statusText = computed(() => {
+  const c = check.value
+  if (!c) return checking.value ? '正在检查更新…' : '尚未检查更新'
+  if (!c.current.supported) return c.error || '当前运行方式不支持自更新'
+  if (c.error) return c.error
+  if (c.hasUpdate && c.latest) return `有可用更新：${c.latest.tag}（当前 v${c.current.version}）`
+  if (c.latest) return `已是最新版本（${c.latest.tag}）`
+  return '未获取到最新版本信息'
+})
+
+// 进度条：只展示「有任务进行中」或刚失败的状态。
+const progressVisible = computed(() => {
+  const p = state.value?.phase
+  return !!p && p !== 'idle'
+})
+
+const progressPercent = computed(() => {
+  const s = state.value
+  if (!s?.total || s.total <= 0) return 0
+  return Math.min(100, Math.round((s.received / s.total) * 100))
+})
+
+const progressFailed = computed(() => state.value?.phase === 'error')
+
+const phaseText = computed(() => {
+  const s = state.value as State | null
+  if (!s) return ''
+  switch (s.phase) {
+    case 'downloading':
+      return `正在下载 ${progressPercent.value}%`
+    case 'verifying':
+      return '正在校验安装包…'
+    case 'installing':
+      return '正在安装新版本…'
+    case 'restarting':
+      return '安装完成，应用即将自动重启…'
+    case 'error':
+      return s.error ? `更新失败：${s.error}` : '更新失败'
+    default:
+      return ''
+  }
+})
+
+const bytesText = computed(() => {
+  const s = state.value
+  if (!s || s.phase !== 'downloading') return ''
+  return `${fmtBytes(s.received)} / ${fmtBytes(s.total)}`
+})
+
+function onConfirmUpdate() {
+  showConfirm.value = false
+  const tag = check.value?.latest?.tag
+  if (tag) void applyUpdate(tag)
+}
 </script>
 
 <template>
@@ -20,10 +89,61 @@ const licenseURL = 'https://www.gnu.org/licenses/lgpl-3.0.html'
     <section class="mb-10 flex flex-col items-center text-center pt-4">
       <img :src="appIcon" alt="ClipSync 图标" class="w-14 h-14 rounded-2xl mb-4 shadow-lg" />
       <h2 class="text-lg font-semibold text-text leading-tight">ClipSync</h2>
-      <p class="text-xs text-muted mt-1 font-mono">v{{ version }}</p>
+      <p class="text-xs text-muted mt-1 font-mono">v{{ version || '—' }}</p>
       <p class="text-sm text-muted mt-4 leading-relaxed max-w-sm">
         一款轻量级的跨平台剪贴板同步工具
       </p>
+    </section>
+
+    <!-- 软件更新：操作与状态同一卡片，下载中展示进度条 -->
+    <section class="mb-10">
+      <h2 class="text-[15px] font-semibold text-text mb-4">软件更新</h2>
+      <div class="rounded-xl bg-overlay-soft px-4 py-3 space-y-3 text-sm">
+        <div class="flex items-center justify-between gap-4 flex-wrap">
+          <span class="text-muted">
+            版本
+            <span class="text-text font-mono ml-1">v{{ version || '—' }}</span>
+          </span>
+          <div class="flex items-center gap-2">
+            <button
+              class="btn btn-ghost"
+              :disabled="checking || updating"
+              @click="checkUpdate()"
+            >
+              {{ checking ? '检查中…' : '检查更新' }}
+            </button>
+            <button v-if="canApply" class="btn btn-primary" :disabled="updating" @click="showConfirm = true">
+              立即更新
+            </button>
+            <button
+              v-if="check?.latest?.htmlUrl"
+              class="inline-flex items-center gap-1.5 text-accent hover:text-accent-hover"
+              @click="Browser.OpenURL(check.latest.htmlUrl)"
+            >
+              <Icon name="link" :size="14" />
+              发布说明
+            </button>
+          </div>
+        </div>
+
+        <p class="text-muted" :class="{ 'text-accent': canApply }">{{ statusText }}</p>
+
+        <div v-if="progressVisible">
+          <div class="h-1.5 rounded-full bg-line overflow-hidden">
+            <div
+              class="h-full rounded-full transition-[width] duration-300"
+              :class="progressFailed ? 'bg-danger' : 'bg-accent'"
+              :style="{ width: progressFailed ? '100%' : `${progressPercent}%` }"
+            />
+          </div>
+          <div class="flex items-center justify-between gap-4 mt-1.5 text-xs">
+            <span :class="progressFailed ? 'text-danger' : 'text-muted'" class="break-all">
+              {{ phaseText }}
+            </span>
+            <span v-if="bytesText" class="text-muted shrink-0 font-mono">{{ bytesText }}</span>
+          </div>
+        </div>
+      </div>
     </section>
 
     <section class="mb-10">
@@ -31,7 +151,7 @@ const licenseURL = 'https://www.gnu.org/licenses/lgpl-3.0.html'
       <div class="rounded-xl bg-overlay-soft px-4 py-3 space-y-2 text-sm">
         <div class="flex justify-between gap-4">
           <span class="text-muted">运行时</span>
-          <span class="text-text">Go + Wails v2</span>
+          <span class="text-text">Go + Wails v3</span>
         </div>
         <div class="flex justify-between gap-4">
           <span class="text-muted">界面</span>
@@ -51,7 +171,7 @@ const licenseURL = 'https://www.gnu.org/licenses/lgpl-3.0.html'
           <span class="text-muted">GitHub</span>
           <button
             class="inline-flex items-center gap-1.5 text-accent hover:text-accent-hover cursor-pointer"
-            @click="BrowserOpenURL(repoURL)"
+            @click="Browser.OpenURL(repoURL)"
           >
             <Icon name="link" :size="14" />
             BrokenDreamStar/ClipSync
@@ -61,7 +181,7 @@ const licenseURL = 'https://www.gnu.org/licenses/lgpl-3.0.html'
           <span class="text-muted">许可证</span>
           <button
             class="inline-flex items-center gap-1.5 text-accent hover:text-accent-hover cursor-pointer"
-            @click="BrowserOpenURL(licenseURL)"
+            @click="Browser.OpenURL(licenseURL)"
           >
             <Icon name="shield" :size="14" />
             LGPL v3
@@ -71,5 +191,15 @@ const licenseURL = 'https://www.gnu.org/licenses/lgpl-3.0.html'
     </section>
 
     <p class="text-center text-xs text-muted">© 2021 - 2026 StarM Team · {{ author }}</p>
+
+    <ConfirmDialog
+      :open="showConfirm"
+      title="更新 ClipSync"
+      :message="`确定更新到 ${check?.latest?.tag ?? ''}？下载并校验完成后应用会自动重启。`"
+      confirm-text="更新"
+      cancel-text="取消"
+      @confirm="onConfirmUpdate"
+      @cancel="showConfirm = false"
+    />
   </div>
 </template>

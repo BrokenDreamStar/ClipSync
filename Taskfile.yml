@@ -1,0 +1,37 @@
+version: '3'
+
+vars:
+  APP_NAME: "ClipSync"
+  BIN_DIR: "build/bin"
+  PACKAGE_MANAGER: npm
+  # dev 模式下 Vite 端口（wails3 dev 会把它设为 FRONTEND_DEVSERVER_URL 注入构建）。
+  VITE_PORT: '{{.WAILS_VITE_PORT | default 5173}}'
+  # 目标平台，默认宿主 OS；交叉编译时用 `wails3 task build GOOS=windows` 覆盖。
+  GOOS: '{{.GOOS | default OS}}'
+
+includes:
+  common: ./build/Taskfile.yml
+  windows: ./build/windows/Taskfile.yml
+  darwin: ./build/darwin/Taskfile.yml
+  linux: ./build/linux/Taskfile.yml
+
+tasks:
+  build:
+    summary: 构建当前平台二进制（build/bin/ClipSync）
+    cmds:
+      - task: '{{.GOOS}}:build'
+
+  package:
+    summary: 打包当前平台（macOS .app bundle；Windows/Linux 需另行打包）
+    cmds:
+      - task: '{{.GOOS}}:package'
+
+  run:
+    summary: 运行当前平台构建产物
+    cmds:
+      - task: '{{.GOOS}}:run'
+
+  dev:
+    summary: 开发模式（Go 重编译 + Vite 热重载）
+    cmds:
+      - wails3 dev -config ./build/config.yml -port {{.VITE_PORT}}

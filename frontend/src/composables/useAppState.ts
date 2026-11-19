@@ -6,46 +6,18 @@ import {
   GetConnectedPeers,
   GetHistory,
   GetPairRequests,
-} from '../wailsjs/go/main/App'
-import { EventsOn, EventsOff } from '../wailsjs/runtime/runtime'
+} from '../../bindings/clipsync/app'
+import { Events } from '@wailsio/runtime'
+import type { ConfigView, HistoryView, PeerView } from '../../bindings/clipsync/models'
+import type {
+  DiscoveredPeer,
+  PairRequest,
+} from '../../bindings/clipsync/internal/engine/models'
 
-export interface HistoryItem {
-  id: string
-  kind: string
-  from: string
-  size: number
-  time: string
-  preview: string
-}
-
-export interface DiscoveredPeer {
-  device_id: string
-  name: string
-  addr: string
-  last_seen: string
-}
-
-export interface PeerView {
-  id: string
-  name: string
-  addr: string
-}
-
-export interface PairRequest {
-  device_id: string
-  name: string
-  addr: string
-  time: string
-}
-
-export interface AppConfig {
-  name: string
-  port: number
-  device_id: string
-  theme: string
-  start_minimized: boolean
-  peers: PeerView[]
-}
+// 数据形状以生成的 models 为唯一事实来源；沿用旧别名保持下游导入不变。
+export type HistoryItem = HistoryView
+export type AppConfig = ConfigView
+export type { PeerView, DiscoveredPeer, PairRequest }
 
 const cfg = ref<AppConfig | null>(null)
 const peers = ref<PeerView[]>([])
@@ -70,7 +42,8 @@ function debounce(fn: () => void, wait: number) {
 }
 
 async function refreshAll() {
-  const [c, p, d, cp, h, pr] = await Promise.all([
+  // v3 绑定下，(T, string) 双返回值方法 resolve 为元组；第二项空串为成功。
+  const [cfgV, p, d, cp, histV, pr] = await Promise.all([
     GetConfig(),
     GetPeers(),
     GetDiscovered(),
@@ -78,26 +51,26 @@ async function refreshAll() {
     GetHistory(),
     GetPairRequests(),
   ])
-  cfg.value = (c as AppConfig) ?? null
-  peers.value = (p as PeerView[]) ?? []
-  discovered.value = (d as DiscoveredPeer[]) ?? []
-  connected.value = (cp as string[]) ?? []
-  history.value = (h as HistoryItem[]) ?? []
-  pairRequests.value = (pr as PairRequest[]) ?? []
+  cfg.value = cfgV[0]
+  peers.value = p ?? []
+  discovered.value = d ?? []
+  connected.value = cp ?? []
+  history.value = histV[0] ?? []
+  pairRequests.value = pr ?? []
 }
 
 async function refreshHistory() {
-  const r = await GetHistory()
-  history.value = (r as HistoryItem[]) ?? []
+  const [items] = await GetHistory()
+  history.value = items ?? []
 }
 
 async function refreshPeers() {
-  peers.value = await GetPeers()
-  connected.value = await GetConnectedPeers()
+  peers.value = (await GetPeers()) ?? []
+  connected.value = (await GetConnectedPeers()) ?? []
 }
 
 async function refreshDiscovered() {
-  discovered.value = await GetDiscovered()
+  discovered.value = (await GetDiscovered()) ?? []
 }
 
 async function refreshPairRequests() {
@@ -111,19 +84,19 @@ const refreshDiscoveredDebounced = debounce(refreshDiscovered, 150)
 export function useAppState() {
   onMounted(async () => {
     await refreshAll()
-    EventsOn('engine:history', refreshHistoryDebounced)
-    EventsOn('engine:peers', refreshPeersDebounced)
-    EventsOn('engine:discovered', refreshDiscoveredDebounced)
-    EventsOn('engine:config', refreshAll)
-    EventsOn('engine:pair_request', refreshPairRequests)
+    Events.On('engine:history', refreshHistoryDebounced)
+    Events.On('engine:peers', refreshPeersDebounced)
+    Events.On('engine:discovered', refreshDiscoveredDebounced)
+    Events.On('engine:config', refreshAll)
+    Events.On('engine:pair_request', refreshPairRequests)
   })
 
   onBeforeUnmount(() => {
-    EventsOff('engine:history')
-    EventsOff('engine:peers')
-    EventsOff('engine:discovered')
-    EventsOff('engine:config')
-    EventsOff('engine:pair_request')
+    Events.Off('engine:history')
+    Events.Off('engine:peers')
+    Events.Off('engine:discovered')
+    Events.Off('engine:config')
+    Events.Off('engine:pair_request')
   })
 
   return {

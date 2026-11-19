@@ -2,7 +2,7 @@
 
 局域网内 macOS、Windows 与 Linux 之间的剪贴板同步工具，支持文本和图片。
 
-UI 基于 Wails v2 + Vue 3 + Vite + Tailwind，后端为纯 Go。
+UI 基于 Wails v3 + Vue 3 + Vite + Tailwind，后端为纯 Go。
 
 ## 功能
 
@@ -94,30 +94,28 @@ chmod +x ClipSync-*-linux-x86_64.AppImage
 ## 构建
 
 ```bash
-# 安装 Wails CLI（如未装过）
-go install github.com/wailsapp/wails/v2/cmd/wails@latest
+# 安装 Wails3 CLI（如未装过）
+go install github.com/wailsapp/wails/v3/cmd/wails3@v3.0.0
 
-# 安装前端依赖并构建前端
-cd frontend && npm install && npm run build && cd ..
-
-# 一次性构建当前平台
-wails build
+# 一次性构建当前平台（依赖链自动完成：绑定生成 → 前端构建 → 图标 → go build）
+wails3 task build
 
 # 开发模式（Vite 热重载 + Go 热编译）
-wails dev
+wails3 dev
 
-# macOS 交叉编译 Windows（需要 mingw-w64）
-# 注意：-compiler 指定的是 Go 编译器，不是 C 编译器；C 交叉编译器用 CC 环境变量。
-# 不要写成 -compiler gcc，否则 wails 会用 gcc 执行 `go mod tidy` 而报错。
-CC=x86_64-w64-mingw32-gcc wails build -platform windows/amd64
+# 打包 macOS 通用 .app（arm64 + amd64）
+wails3 task darwin:package:universal
+
+# 交叉编译 Windows（v3 Windows 后端为纯 syscall，无需 mingw-w64）
+wails3 task windows:build ARCH=amd64
 
 # Linux（需要 GTK3 / WebKitGTK 4.1 开发库，见下）
-wails build -platform linux/amd64 -tags webkit2_41
-sh build/linux/build_appimage.sh   # 把 build/bin/ClipSync 打成 AppImage
+wails3 task linux:build ARCH=amd64 EXTRA_TAGS=gtk3
+wails3 task linux:package          # 把 build/bin/ClipSync 打成 AppImage
 ```
 
-> Windows 下 `-H windowsgui` 不再需要（Wails 默认不开控制台）。所有日志会写入
-> `%USERPROFILE%\.clipsync\app.log`。
+> Windows 下所有日志会写入 `%USERPROFILE%\.clipsync\app.log`。
+> macOS 上构建 Linux 版走 Docker：`sh build/linux/build_in_docker.sh`。
 
 Linux 构建依赖（Debian/Ubuntu 为例）：
 
@@ -125,16 +123,17 @@ Linux 构建依赖（Debian/Ubuntu 为例）：
 sudo apt install libgtk-3-dev libwebkit2gtk-4.1-dev
 ```
 
-- `-tags webkit2_41` 选择 WebKitGTK 4.1 后端（Wails CLI 不会自动探测，必须显式指定）
-- `build_appimage.sh` 会自动下载对应架构的 appimagetool（经 `--appimage-extract-and-run` 调用，无需 FUSE）
+- `EXTRA_TAGS=gtk3` 选择 GTK3 / WebKitGTK 4.1 后端（v3 默认后端是 GTK4 / WebKitGTK-6.0）
+- `build_appimage.sh` 依赖 PATH 中的 appimagetool（经 `--appimage-extract-and-run` 调用，无需 FUSE）
 - AppImage 依赖目标系统安装 WebKitGTK 4.1（主流发行版的桌面环境均自带）；剪贴板优先走 X11（XWayland 下可用），纯 Wayland 会话自动切换到 wl-clipboard——打包机装有 `wl-clipboard` 时会内置进 AppImage，否则需用户自行安装
 
 ## 项目结构
 
 | 文件 / 目录 | 说明 |
 |---|---|
-| `main.go` | Wails 入口；命令行参数 + `wails.Run` |
-| `app.go` | Wails 绑定层（暴露给前端的方法） |
+| `main.go` | Wails v3 入口；命令行参数 + `application.New` + 窗口 + 托盘 + 生命周期 |
+| `app.go` | 绑定服务（暴露给前端的方法） |
+| `appearance_darwin.go` / `appearance_darwin.m` | macOS 深浅色探测与运行时切换外观（cgo） |
 | `internal/engine/` | 后端：剪贴板监听、广播、接收、历史、发现、配置 |
 | `internal/engine/engine.go` | 同步引擎（hub / dialer / clipboard / discovery） |
 | `internal/engine/server.go` | TCP 服务端 |
@@ -143,15 +142,13 @@ sudo apt install libgtk-3-dev libwebkit2gtk-4.1-dev
 | `internal/engine/clipboard.go` | 系统剪贴板读写 |
 | `internal/engine/discovery.go` | UDP 局域网发现 |
 | `internal/engine/config.go` | 配置加载与保存 |
-| `tray_darwin.go` / `tray_darwin.m` / `tray_darwin.h` | macOS NSStatusItem 托盘（cgo） |
-| `tray_linux.go` | Linux 托盘（fyne.io/systray 纯 Go DBus，StatusNotifierItem） |
-| `tray_other.go` | 其余平台 no-op 占位 |
-| `autostart_*.go` / `appearance_*.go` | 各平台开机自启与深浅色探测实现 |
-| `build/linux/` | AppImage 打包资源（desktop 条目、AppRun、打包脚本） |
+| `autostart_*.go` | 各平台开机自启实现（保留自定义版：Linux 会记录 `$APPIMAGE` 路径） |
+| `Taskfile.yml` + `build/Taskfile.yml` + `build/<平台>/Taskfile.yml` | wails3 任务体系（build / package / run / dev） |
+| `build/config.yml` | 项目元数据与版本号（Info.plist / Windows syso / AppImage 共用） |
+| `build/linux/` | AppImage 打包资源（desktop 条目、AppRun、打包脚本、Docker 构建） |
 | `icon.go` | 嵌入图标字节 |
 | `frontend/` | Vue 3 + Vite + Tailwind 前端项目 |
-| `frontend/src/App.vue` | 主布局：状态条 + 三段卡片 |
-| `frontend/src/components/` | StatusBar / DeviceSettings / PeersSection / HistoryList / ToastStack |
-| `frontend/src/composables/` | useAppState / useToast |
-| `wails.json` | Wails 项目元数据 |
-| `build/bin/` | `wails build` 产物目录 |
+| `frontend/bindings/` | `wails3 generate bindings` 生成的 TS 绑定（勿手改） |
+| `frontend/src/components/` | TitleBar / Sidebar / HistoryView / DevicesView / SettingsView / AboutView 等 |
+| `frontend/src/composables/` | useAppState / useTheme / useToast |
+| `build/bin/` | 构建产物目录 |

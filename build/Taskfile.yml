@@ -1,0 +1,88 @@
+version: '3'
+
+tasks:
+  go:mod:tidy:
+    summary: 运行 go mod tidy
+    internal: true
+    run: once
+    cmds:
+      - go mod tidy
+
+  install:frontend:deps:
+    summary: 安装前端依赖（npm）
+    run: once
+    dir: frontend
+    sources:
+      - package.json
+      - package-lock.json
+    generates:
+      - node_modules
+    cmds:
+      - npm install
+
+  build:frontend:
+    summary: 构建前端（含 vue-tsc 类型检查；先重新生成绑定）
+    # darwin:build:universal 的两个并行 arch 依赖都会触发本任务，
+    # run:once 防止两次生成/构建竞态。
+    run: once
+    dir: frontend
+    sources:
+      - "**/*"
+      - exclude: node_modules/**/*
+    generates:
+      - dist/**/*
+    deps:
+      - task: install:frontend:deps
+      - task: generate:bindings
+        vars:
+          BUILD_FLAGS:
+            ref: .BUILD_FLAGS
+    cmds:
+      - npm run build -q
+
+  generate:bindings:
+    summary: 生成前端绑定（静态分析 Go 源码，不再运行二进制）
+    run: once
+    deps:
+      - task: go:mod:tidy
+    sources:
+      - "**/*.go"
+      - go.mod
+      - go.sum
+      - exclude: frontend/**/*
+    generates:
+      - frontend/bindings/**/*
+    cmds:
+      # -names：绑定以 'main.App.方法名' 调用而非数字 ID，
+      # 人类可读且浏览器预览 mock 可按方法名路由。
+      - wails3 generate bindings -f '{{.BUILD_FLAGS}}' -clean=true -ts -i -names
+
+  generate:icons:
+    summary: 由 build/appicon.png 生成 darwin/icons.icns 与 windows/icon.ico
+    run: once
+    dir: build
+    sources:
+      - appicon.png
+    generates:
+      - darwin/icons.icns
+      - windows/icon.ico
+    cmds:
+      - wails3 generate icons -input appicon.png -macfilename darwin/icons.icns -windowsfilename windows/icon.ico
+
+  dev:frontend:
+    summary: 开发模式运行 Vite
+    deps:
+      - task: install:frontend:deps
+    cmds:
+      - task: frontend:dev:npm
+
+  frontend:dev:npm:
+    dir: frontend
+    cmds:
+      - npm run dev -- --port {{.VITE_PORT}} --strictPort
+
+  update:build-assets:
+    summary: 依据 config.yml 重新渲染 build 资产（Info.plist / windows 资源等）
+    dir: build
+    cmds:
+      - wails3 update build-assets -name "{{.APP_NAME}}" -binaryname "{{.APP_NAME}}" -config config.yml -dir .

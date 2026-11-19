@@ -5,6 +5,28 @@
 
 ## [Unreleased]
 
+## [0.1.0] - 2026-11-19
+
+### 新增
+
+- **应用内更新（GitHub Releases）**：「关于」页新增软件更新卡片——检查 GitHub 最新版本、一键下载安装并自动重启。启动时也会静默检查一次，发现新版本时通过 toast 提示并引导到「关于」页。
+  - 更新源是 Release 附带的 `latest.json` 清单（CI 发布时自动生成，含各平台产物的文件名 / 大小 / sha256），更新器走 `releases/latest/download/latest.json` 稳定地址，不占 GitHub API 配额、无需 token；下载后校验 sha256 与平台文件头再安装。
+  - 三平台安装策略：Windows 便携 EXE 与 Linux AppImage 走「旧文件改名 `.old`、新文件就位」的换名替换（`.old` 保留为新版本起不来时的回滚点，新版启动成功后自动清理）；macOS 下载 DMG 后挂载、`ditto` 整包覆盖 `.app`，退出后由 helper 以 `open` 重新拉起。
+  - 重启顺序保证端口不冲突：安装完成后由 detached helper 等旧进程退出（引擎停完、TCP/UDP 端口已释放）再启动新版本。
+  - 版本号改为运行时从内嵌的 `build/config.yml` 读取（与 Info.plist / Windows syso 同源），「关于」页版本号不再硬编码。
+  - 网络受限环境可设 `CLIPSYNC_UPDATE_MIRROR` 环境变量走 ghproxy 类镜像（前缀拼接原始下载地址）。
+  - 注意：0.0.4 及更早的发布没有 `latest.json`，旧版本内的更新检查会提示到发布页手动下载；从首个带清单的版本起，后续版本均可应用内自更新。
+
+### 变更
+
+- **框架升级到 Wails v3.0.0**：桌面框架从 Wails v2.15.0 迁移到 v3.0.0 稳定版，用户可见行为不变。
+  - 构建体系切换到 `wails3` CLI + Taskfile（`wails3 task build` / `wails3 dev`）；项目元数据由 `wails.json` / `winres.json` 迁至 `build/config.yml`，版本号一处配置（Info.plist、Windows syso、AppImage 命名共用）。
+  - 系统托盘改用 Wails v3 内置 SystemTray（Linux 后端同为纯 Go DBus StatusNotifierItem），删除 macOS cgo 托盘与 `getlantern/systray`、`fyne.io/systray` 依赖；macOS 菜单栏改用模板图标（自动跟随系统明暗）。macOS 的 accessory 激活策略改由 `MacOptions.ActivationPolicy` 官方配置实现。
+  - 绑定生成改为 `wails3 generate bindings` 静态分析（不再以 `-tags bindings` 运行二进制提取），v2 时代的绑定模式桩整体移除，"应用运行时构建因 9250 端口被占用而失败"的坑从根上消除。
+  - 前端运行时改用 npm 包 `@wailsio/runtime`；绑定导入自 `frontend/bindings/`，`(T, string)` 元组返回值在 v3 下前端按元组解包（第二项空串为成功，约定不变）。
+  - Linux 构建标签 `webkit2_41` 改为 `gtk3`（v3 以 build tag 区分 GTK3/WebKitGTK-4.1 与 GTK4/WebKitGTK-6.0 后端）；Windows 构建为纯 syscall 交叉编译（CGO_ENABLED=0），不再需要 mingw-w64。
+  - 窗口"关闭即隐藏"改经 `WindowClosing` 事件钩子实现（v3 无 `HideWindowOnClose` 选项），托盘"退出"置退出标志后放行关闭。
+
 ### 新增
 
 - **纯 Wayland 支持**：Linux 剪贴板不再强依赖 X11——X11 不可用（未启用 XWayland 的纯 Wayland 会话）时自动切换到 `wl-clipboard`（`wl-copy` / `wl-paste`）实现剪贴板监听与写入，文本与图片均可同步。AppImage 会内置这两个工具（打包机需装有 `wl-clipboard`），裸二进制部署需自行安装 `wl-clipboard` 包。

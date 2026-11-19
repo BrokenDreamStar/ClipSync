@@ -1,0 +1,49 @@
+# Wails v3 项目构建配置：应用元数据（图标 / 版本 / Info.plist / syso 等由此渲染）。
+# 修改 info 后运行 `wails3 task common:update:build-assets` 重新生成 build 资产。
+# 注意：该命令会覆盖 build/darwin、build/windows 下的模板化资产。
+version: '3'
+
+# 应用信息：macOS Info.plist、Windows syso、AppImage 元数据共用。
+info:
+  companyName: "BrokenDream_Star"
+  productName: "ClipSync"
+  productIdentifier: "com.clipsync.app"
+  description: "局域网剪贴板同步工具"
+  copyright: "Copyright (c) BrokenDream_Star"
+  comments: "局域网 macOS / Windows / Linux 剪贴板同步工具"
+  version: "0.1.0"
+
+# Dev 模式：Go 侧重编译 + Vite 热重载（前端目录整体排除，走 dev:frontend 任务）。
+dev_mode:
+  root_path: .
+  log_level: warn
+  debounce: 1000
+  ignore:
+    dir:
+      - .git
+      - node_modules
+      - frontend
+      - bin
+      - build/bin
+    file:
+      - .DS_Store
+      - .gitignore
+      - .gitkeep
+      - "*_test.go"
+    watched_extension:
+      - "*.go"
+      - "*.js"
+      - "*.ts"
+    git_ignore: true
+  executes:
+    - cmd: wails3 build DEV=true
+      type: blocking
+    - cmd: wails3 task common:dev:frontend
+      type: background
+    - cmd: wails3 task run
+      type: primary
+      exit_policy: shutdown
+
+fileAssociations:
+
+other:

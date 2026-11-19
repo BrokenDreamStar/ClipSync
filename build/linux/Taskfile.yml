@@ -1,0 +1,46 @@
+version: '3'
+
+includes:
+  common: ../Taskfile.yml
+
+tasks:
+  build:
+    summary: 构建 Linux 二进制（需 GTK3 + WebKitGTK 4.1 开发库，EXTRA_TAGS=gtk3）
+    deps:
+      - task: common:go:mod:tidy
+      - task: common:build:frontend
+        vars:
+          BUILD_FLAGS:
+            ref: .BUILD_FLAGS
+          DEV:
+            ref: .DEV
+      - task: common:generate:icons
+    preconditions:
+      # v3 Linux GTK3 后端 pkg-config：gtk+-3.0 webkit2gtk-4.1 gdk-3.0
+      - sh: pkg-config --exists gtk+-3.0 webkit2gtk-4.1
+        msg: "缺少 Linux 构建依赖：sudo apt install libgtk-3-dev libwebkit2gtk-4.1-dev"
+    cmds:
+      - go build {{.BUILD_FLAGS}} -o "{{.OUTPUT}}"
+    vars:
+      # v3 默认 Linux 后端是 GTK4/WebKitGTK-6.0；沿用 GTK3/WebKitGTK-4.1 时传
+      # EXTRA_TAGS=gtk3（与 CI / Docker 环境一致，见 AGENTS.md）。
+      BUILD_FLAGS: '{{if eq .DEV "true"}}{{if .EXTRA_TAGS}}-tags {{.EXTRA_TAGS}} {{end}}-buildvcs=false -gcflags=all="-l"{{else}}-tags production{{if .EXTRA_TAGS}},{{.EXTRA_TAGS}}{{end}} -trimpath -buildvcs=false -ldflags="-w -s"{{end}}'
+      DEFAULT_OUTPUT: '{{.BIN_DIR}}/{{.APP_NAME}}'
+      OUTPUT: '{{ .OUTPUT | default .DEFAULT_OUTPUT }}'
+    env:
+      GOOS: linux
+      CGO_ENABLED: 1
+      GOARCH: '{{.ARCH | default ARCH}}'
+
+  package:
+    summary: 打包 AppImage（沿用自有脚本：内置 wl-clipboard 供纯 Wayland 会话使用）
+    deps:
+      - task: build
+        vars:
+          EXTRA_TAGS: '{{.EXTRA_TAGS | default "gtk3"}}'
+    cmds:
+      - sh build/linux/build_appimage.sh
+
+  run:
+    cmds:
+      - '"{{.BIN_DIR}}/{{.APP_NAME}}"'

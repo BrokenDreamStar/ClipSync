@@ -1,5 +1,5 @@
 import { ref, computed, watch } from 'vue'
-import { SetTheme } from '../wailsjs/go/main/App'
+import { SetTheme } from '../../bindings/clipsync/app'
 import { useAppState } from './useAppState'
 
 export type ThemePref = 'dark' | 'light' | 'system'

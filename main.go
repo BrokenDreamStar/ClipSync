@@ -1,7 +1,6 @@
 package main
 
 import (
-	"context"
 	"embed"
 	"flag"
 	"fmt"
@@ -9,22 +8,41 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
+	"regexp"
 	"runtime"
 	"syscall"
 	"time"
 
 	"clipsync/internal/clipboard"
 	"clipsync/internal/engine"
+	"clipsync/internal/updater"
 
-	"github.com/wailsapp/wails/v2"
-	"github.com/wailsapp/wails/v2/pkg/options"
-	"github.com/wailsapp/wails/v2/pkg/options/assetserver"
-	"github.com/wailsapp/wails/v2/pkg/options/mac"
-	"github.com/wailsapp/wails/v2/pkg/options/windows"
+	"github.com/wailsapp/wails/v3/pkg/application"
+	"github.com/wailsapp/wails/v3/pkg/events"
 )
 
 //go:embed all:frontend/dist
 var assets embed.FS
+
+// buildConfig 内嵌构建配置，运行时解析 info.version 作为应用版本号
+//（更新器比较版本用）。与 Info.plist / Windows syso 同源，且 go build /
+// go test 产物始终拿得到，无需 ldflags 注入；AboutView 的硬编码版本由此消掉。
+//
+//go:embed build/config.yml
+var buildConfig []byte
+
+// versionRe 匹配 config.yml 里 info 块的两空格缩进版本行（如 "0.1.0"）。
+var versionRe = regexp.MustCompile(`(?m)^[ \t]+version:[ \t]*"([0-9]+\.[0-9]+\.[0-9]+)"`)
+
+// appVersionFromConfig 从内嵌 config.yml 解析版本号；解析失败返回空串
+//（更新检查会以「版本号缺失」失败，而不是误判）。
+func appVersionFromConfig(data []byte) string {
+	m := versionRe.FindSubmatch(data)
+	if m == nil {
+		return ""
+	}
+	return string(m[1])
+}
 
 func main() {
 	configFile := flag.String("config", engine.ConfigPath(), "配置文件路径")
@@ -43,6 +61,12 @@ func main() {
 	cfg, err := engine.LoadConfig(*configFile)
 	if err != nil {
 		log.Fatalf("加载配置: %v", err)
+	}
+
+	// 版本号注入：更新器检查更新时与 GitHub 最新 Release 比较。
+	updater.SetCurrentVersion(appVersionFromConfig(buildConfig))
+	if updater.AppVersion == "" {
+		log.Println("警告: 未能从 build/config.yml 解析版本号，更新检查将不可用")
 	}
 
 	// 快速路径：发起一次配对后落盘并退出。
@@ -65,110 +89,137 @@ func main() {
 		return
 	}
 
-	// 绑定生成模式（wails build / wails dev 会用 -tags bindings 构建并真实运行
-	// 本二进制以提取绑定）：跳过剪贴板、引擎等一切副作用。否则绑定进程会启动
-	// 第二个引擎，与正在运行的实例抢 9250 端口，导致应用运行中无法构建。
-	var eng *engine.Engine
-	if !bindingGen {
+	// 绑定由 wails3 generate bindings 静态分析生成（不再运行二进制提取），
+	// 因此无需 v2 时代的 -tags bindings 旁路模式，引擎可以无条件启动。
+
+	// 先建引擎与绑定服务、再注入 Wails app 引用、最后 Start 引擎：
+	// 保证 topic 订阅在第一条引擎事件发出前就位。
+	eng := engine.NewEngine(cfg, *configFile)
+	svc := NewApp(eng)
+
+	// 更新完成后的退出走「托盘退出」同一路径：置 quitting 标志 → wails.Quit，
+	// 引擎停止与 wl-paste 清理统一在 OnShutdown 完成；detached helper 等本进程
+	// 退出后拉起新版本（见 internal/updater 的注释）。
+	updater.SetQuitFunc(func() { svc.Quit() })
+
+	if *headless {
 		if err := clipboard.Init(); err != nil {
 			log.Fatalf("初始化剪贴板失败: %v", err)
 		}
-
-		eng = engine.NewEngine(cfg, *configFile)
 		eng.Start()
+		updater.CleanupStaleFiles()
 		fmt.Printf("ClipSync 已启动，本机名: %s，端口: %d\n", cfg.Name, cfg.Port)
-	}
-
-	if *headless {
 		sig := make(chan os.Signal, 1)
 		signal.Notify(sig, os.Interrupt, syscall.SIGTERM)
 		<-sig
-		if eng != nil {
-			eng.Stop()
-		}
+		eng.Stop()
 		clipboard.Shutdown()
 		return
 	}
 
-	app := NewApp(nil, eng)
-
-	bgR, bgG, bgB := backgroundColorFor(cfg.Theme)
-	err = wails.Run(&options.App{
-		Title:  "ClipSync",
-		Width:  880,
-		Height: 560,
-		AssetServer: &assetserver.Options{
-			Assets: assets,
+	wailsApp := application.New(application.Options{
+		Name:        "ClipSync",
+		Description: "局域网 macOS / Windows / Linux 剪贴板同步工具",
+		Icon:        iconBytes,
+		Services: []application.Service{
+			application.NewService(svc),
 		},
-		BackgroundColour: &options.RGBA{R: bgR, G: bgG, B: bgB, A: 1},
-		// Windows / Linux 去掉系统原生标题栏（那条 "ClipSync" 标题条），
-		// 与 macOS 的 TitleBarHidden 观感一致；窗口拖动走前端侧栏的拖拽区。
-		// macOS 不能用 Frameless——它需要保留原生红绿灯，仍走 TitleBarHidden。
-		Frameless: runtime.GOOS == "windows" || runtime.GOOS == "linux",
-		OnStartup: func(ctx context.Context) {
-			app.ctx = ctx
-			app.subscribe()
-			// macOS 上安装自定义 NSStatusItem 托盘（避免与 Wails AppDelegate 冲突）。
-			// 必须放在 OnStartup 里:那时 NSApp 主线程已就绪,Cocoa 主队列活跃,
-			// NSStatusBar 创建窗口才不会触发 NSInternalInconsistencyException。
-			// Windows 用 getlantern/systray、Linux 用 fyne.io/systray（纯 Go DBus，
-			// 避免与 Wails 主线程的 gtk_main 冲突），其余平台为 no-op。
-			StartTray(app.ShowMainWindow, app.Quit)
-			// macOS 上把 NSApp 激活策略切到 accessory:不出现在 Dock,
-			// 不被 Cmd+Tab 列出,只通过菜单栏托盘交互。
-			// Wails AppDelegate 在 applicationWillFinishLaunching: 里强制设过
-			// Regular,必须这里覆盖一次。
-			if runtime.GOOS == "darwin" {
-				SetAccessoryActivationPolicy()
-			}
+		Assets: application.AssetOptions{
+			Handler: application.AssetFileServerFS(assets),
 		},
-		Bind: []interface{}{app},
-		Mac: &mac.Options{
-			TitleBar:   mac.TitleBarHidden(),
-			Appearance: macAppearance(cfg.Theme),
-			About: &mac.AboutInfo{
-				Title:   "ClipSync",
-				Message: "局域网 macOS ↔ Windows 剪贴板同步工具",
-			},
-		},
-		Windows: &windows.Options{
-			// "system" 跟随系统深浅色；native 标题栏颜色随之切换。
-			Theme: windowsTheme(cfg.Theme),
-		},
-		// 全平台开启 HideWindowOnClose：红钮/Cmd+W/窗口关闭按钮都只触发
-		// "隐藏窗口",不结束应用。彻底退出走菜单栏托盘的"退出"菜单,
-		// 它会调用 app.Quit → runtime.Quit → 走到下面的 OnBeforeClose。
-		HideWindowOnClose: true,
-		// 「启动时最小化到任务栏」：开启后窗口以隐藏方式启动,只保留托盘
-		// 图标,由用户通过托盘菜单"打开主窗口"唤出。默认关闭。
-		StartHidden: cfg.StartMinimized,
-		OnBeforeClose: func(ctx context.Context) (prevent bool) {
-			// 这里只会被"真正的退出请求"触发（Cmd+Q / 托盘退出 /
-			// 应用菜单 Quit）。红钮在 HideWindowOnClose=true 时已被
-			// windowShouldClose: 拦截成 [NSApp hide:nil],不会到这一步。
-			// 放行,让 wails.Run 走完清理流程。
-			return false
+		Mac: application.MacOptions{
+			// accessory：应用不出现在 Dock、不被 Cmd+Tab 列出，
+			// 只通过菜单栏托盘交互（替代 v2 的 SetAccessoryActivationPolicy cgo hack）。
+			ActivationPolicy: application.ActivationPolicyAccessory,
 		},
 	})
-	if err != nil {
-		if eng != nil {
-			eng.Stop()
+	svc.wails = wailsApp
+
+	bgR, bgG, bgB := backgroundColorFor(cfg.Theme)
+	window := wailsApp.Window.NewWithOptions(application.WebviewWindowOptions{
+		Name:  "main",
+		Title: "ClipSync",
+		Width:  880,
+		Height: 560,
+		// Windows / Linux 去掉系统原生标题栏，与 macOS 的 TitleBarHidden 观感一致；
+		// 窗口拖动走前端侧栏的拖拽区（--wails-draggable，v3 沿用同一约定）。
+		// macOS 不能用 Frameless——它需要保留原生红绿灯，仍走 Mac.TitleBar。
+		Frameless: runtime.GOOS == "windows" || runtime.GOOS == "linux",
+		// 「启动时最小化到任务栏」：窗口以隐藏方式创建，只保留托盘图标。
+		Hidden: cfg.StartMinimized,
+		// 原生窗口背景色与前端 --c-surface 一致，避免浅色主题下露出深色底。
+		BackgroundColour: application.NewRGB(bgR, bgG, bgB),
+		Mac: application.MacWindow{
+			// 隐藏标题栏但保留红绿灯（对应 v2 mac.TitleBarHidden）。
+			TitleBar:   application.MacTitleBarHidden,
+			Appearance: macAppearance(cfg.Theme),
+		},
+		Windows: application.WindowsWindow{
+			// "system" 跟随系统深浅色；原生标题栏颜色随之切换。
+			Theme: windowsTheme(cfg.Theme),
+		},
+	})
+	svc.window = window
+
+	// 关闭请求 → 隐藏窗口（替代 v2 HideWindowOnClose）：
+	// 红钮 / Cmd+W / 窗口关闭按钮都只隐藏，不结束应用；
+	// 真正退出走托盘菜单的"退出"（svc.Quit 置 quitting 标志后放行）。
+	window.RegisterHook(events.Common.WindowClosing, func(event *application.WindowEvent) {
+		if svc.quitting {
+			return
 		}
-		log.Fatalf("wails.Run: %v", err)
+		event.Cancel()
+		window.Hide()
+	})
+
+	// 托盘：Wails v3 内置 SystemTray。Linux 后端是纯 Go DBus
+	// StatusNotifierItem（与 v2 用的 fyne.io/systray 同源，由 Wails 主循环统一
+	// 调度，无第二 gtk_main 冲突）；macOS / Windows 各自原生实现。
+	// 必须等 ApplicationStarted 再创建：此时主循环已就绪。
+	wailsApp.Event.OnApplicationEvent(events.Common.ApplicationStarted, func(*application.ApplicationEvent) {
+		menu := wailsApp.NewMenu()
+		menu.Add("打开主窗口").OnClick(func(*application.Context) { svc.ShowMainWindow() })
+		menu.AddSeparator()
+		menu.Add("退出 ClipSync").OnClick(func(*application.Context) { svc.Quit() })
+
+		tray := wailsApp.SystemTray.New()
+		tray.SetTooltip("ClipSync — 局域网剪贴板同步")
+		if runtime.GOOS == "darwin" {
+			// 模板图标：菜单栏单色剪贴板形状，自动跟随系统明暗反色
+			// （v2 用 SF Symbol doc.on.clipboard 的模板语义）。
+			tray.SetTemplateIcon(trayBytes)
+		} else {
+			tray.SetIcon(trayBytes)
+		}
+		tray.SetMenu(menu)
+		// 与 v2 一致：单击（macOS 菜单栏惯例）与右键都弹出菜单。
+		tray.OnClick(func() { tray.ShowMenu() })
+		tray.OnRightClick(func() { tray.ShowMenu() })
+		tray.Run()
+	})
+
+	// 引擎在订阅就位、Wails app 注入完成后启动，此后的事件都能安全 emit。
+	if err := clipboard.Init(); err != nil {
+		log.Fatalf("初始化剪贴板失败: %v", err)
 	}
-	// 兜底:NSStatusItem / clipboard 等子线程残留会让进程在 Wails 退出后
-	// 短暂挂起;此处强制结束,确保"退出"就是真的退出。
-	if eng != nil {
+	eng.Start()
+	// 上次更新留下的 .old 回滚点与 .part 半成品：新版本能起来说明它可用，清掉。
+	updater.CleanupStaleFiles()
+	fmt.Printf("ClipSync 已启动，本机名: %s，端口: %d\n", cfg.Name, cfg.Port)
+
+	// 退出清理：停引擎、终止 Wayland 的 wl-paste --watch 子进程。
+	wailsApp.OnShutdown(func() {
 		eng.Stop()
+		clipboard.Shutdown()
+	})
+
+	if err := wailsApp.Run(); err != nil {
+		eng.Stop()
+		log.Fatalf("wailsApp.Run: %v", err)
 	}
-	// 终止 Wayland 剪贴板随行的 wl-paste --watch 子进程,避免应用退出后残留孤儿进程。
-	clipboard.Shutdown()
+	// 兜底：强制结束进程，防 clipboard 等子线程残留造成"退出后进程短暂挂起"。
 	os.Exit(0)
 }
-
-// onTrayReady 已删除，改用 StartTray。
-
-// isConsole / openWindowsLogFile 保留 Windows 帮助函数。
 
 // ---- 主题解析 ----
 
@@ -193,27 +244,27 @@ func backgroundColorFor(theme string) (r, g, b uint8) {
 	return 0xFA, 0xFA, 0xF8
 }
 
-// macAppearance 返回 macOS NSAppearance；"system" 返回默认值让窗口跟随系统外观。
-func macAppearance(theme string) mac.AppearanceType {
+// macAppearance 返回 macOS NSWindow 外观；"system" 返回默认值让窗口跟随系统外观。
+func macAppearance(theme string) application.MacAppearanceType {
 	switch theme {
 	case "light":
-		return mac.NSAppearanceNameAqua
+		return application.NSAppearanceNameAqua
 	case "dark":
-		return mac.NSAppearanceNameDarkAqua
+		return application.NSAppearanceNameDarkAqua
 	default:
-		return mac.DefaultAppearance
+		return application.DefaultAppearance
 	}
 }
 
 // windowsTheme 返回 Windows 原生窗口主题（标题栏颜色）；"system" 跟随系统。
-func windowsTheme(theme string) windows.Theme {
+func windowsTheme(theme string) application.Theme {
 	switch theme {
 	case "light":
-		return windows.Light
+		return application.Light
 	case "dark":
-		return windows.Dark
+		return application.Dark
 	default:
-		return windows.SystemDefault
+		return application.SystemDefault
 	}
 }
 

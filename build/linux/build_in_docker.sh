@@ -4,7 +4,7 @@
 # 前置：Docker 已安装并启动。Apple Silicon 上用 Docker Desktop / OrbStack
 # （默认 Rosetta 转译 amd64 容器）；纯 QEMU 模拟会非常慢。
 #
-# 流程：go mod tidy → wails build (linux/amd64 + webkit2_41) → go vet → go test
+# 流程：wails3 task linux:build (amd64 + gtk3) → go vet → go test
 #       → AppImage 打包。产物落在仓库 build/bin/ 下。
 #
 # frontend/node_modules 由独立 named volume 遮蔽：容器内按 amd64 安装依赖，
@@ -58,15 +58,16 @@ echo "==> 容器内构建 + 测试"
     -v clipsync-node:/src/frontend/node_modules \
     $RUN_PROXY_ARGS \
     "$IMAGE" bash -euo pipefail -c '
-echo "==> [1/5] go mod tidy"
-go mod tidy
-echo "==> [2/5] wails build linux/amd64 (webkit2_41)"
-wails build -platform linux/amd64 -tags webkit2_41
-echo "==> [3/5] go vet"
+echo "==> [1/4] wails3 task linux:build (amd64, gtk3)"
+# task 依赖链自动完成 go mod tidy / 绑定生成 / 前端构建 / 图标生成。
+# v3 Linux GTK3 后端 pkg-config 用 gtk+-3.0 + webkit2gtk-4.1，标签为 gtk3
+# （v2 时代的 webkit2_41 标签已废弃）。
+wails3 task linux:build ARCH=amd64 EXTRA_TAGS=gtk3
+echo "==> [2/4] go vet"
 go vet ./...
-echo "==> [4/5] go test"
+echo "==> [3/4] go test"
 go test ./...
-echo "==> [5/5] AppImage 打包"
+echo "==> [4/4] AppImage 打包"
 # 探测 appimagetool 能否真在该仿真层跑：macOS Docker on Apple Silicon
 # 不翻译非 PIE x86_64 ELF（appimagetool 是 type-1 旧格式），本地会报
 # "Exec format error"。探测失败则跳过、由 CI/Linux runner 接管。

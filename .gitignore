@@ -22,3 +22,15 @@ wails.json.bak
 # AppImage 打包的中间产物
 build/linux/ClipSync.AppDir/
 build/linux/.appimagetool-*
+
+# wails3 task runner 本地缓存
+.task/
+
+# wails3 update build-assets 生成的未用平台脚手架（iOS / deb-rpm / NSIS / dev 模式
+# plist 等）：本项目发布矩阵只有 DMG / EXE / AppImage，这些模板不参与构建，
+# 每次重渲染都会重新生成，忽略之。若日后启用对应打包方式再移出本节。
+build/ios/
+build/linux/nfpm/
+build/linux/desktop
+build/windows/nsis/
+build/darwin/Info.dev.plist
