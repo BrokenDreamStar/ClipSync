@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, watch, computed, onMounted } from 'vue'
+import { ref, watch, computed, onMounted, onBeforeUnmount } from 'vue'
 import Icon from './Icon.vue'
 import ToggleSwitch from './ToggleSwitch.vue'
 import { SaveConfig, GetAutostart, SetAutostart, SetStartMinimized } from '../../bindings/clipsync/app'
@@ -12,6 +12,9 @@ const toast = useToast()
 
 const name = ref('')
 const port = ref(9250)
+// 声明必须在下方 immediate watch 之前：首次进入设置页时 cfg 已由其他视图填充，
+// 回调会立即执行并写入该 ref。
+const startMinimized = ref(false)
 
 watch(
   () => state.cfg.value,
@@ -26,14 +29,44 @@ watch(
 
 const deviceID = computed(() => state.cfg.value?.device_id ?? '')
 
-async function onSave() {
-  const err = await SaveConfig(name.value, Number(port.value))
+const valid = computed(() => {
+  const p = Number(port.value)
+  return name.value.trim() !== '' && Number.isInteger(p) && p >= 1 && p <= 65535
+})
+
+// 修改后自动保存：输入停顿 600ms 再落盘，避免每敲一个字符写一次配置。
+// 与当前配置相同（含首次从配置回填）时不重复保存。
+const saved = ref(false)
+let saveTimer: ReturnType<typeof setTimeout> | undefined
+let savedTimer: ReturnType<typeof setTimeout> | undefined
+
+async function autoSave() {
+  if (!valid.value) return
+  const n = name.value.trim()
+  const p = Number(port.value)
+  const cfg = state.cfg.value
+  if (!cfg || (n === cfg.name && p === cfg.port)) return
+  const err = await SaveConfig(n, p)
   if (err) {
-    toast.err('保存失败：' + err)
+    toast.err('自动保存失败：' + err)
     return
   }
-  toast.ok('配置已保存。修改本机名或端口需重启生效。')
+  saved.value = true
+  clearTimeout(savedTimer)
+  savedTimer = setTimeout(() => (saved.value = false), 2000)
 }
+
+watch([name, port], () => {
+  clearTimeout(saveTimer)
+  saveTimer = setTimeout(() => void autoSave(), 600)
+})
+
+onBeforeUnmount(() => {
+  // 离开页面时立刻补存最后一次未落盘的输入。
+  clearTimeout(saveTimer)
+  void autoSave()
+  clearTimeout(savedTimer)
+})
 
 // ---- 外观 ----
 
@@ -70,8 +103,6 @@ async function onAutostart(enable: boolean) {
 
 // ---- 启动时最小化到任务栏 ----
 
-const startMinimized = ref(false)
-
 async function onStartMinimized(enable: boolean) {
   const err = await SetStartMinimized(enable)
   if (err) {
@@ -106,6 +137,12 @@ async function onStartMinimized(enable: boolean) {
       <p class="text-xs text-muted mt-4 break-all">
         设备 ID：<span class="font-mono">{{ deviceID }}</span>
       </p>
+      <div class="flex items-center gap-3 mt-2">
+        <p class="text-xs" :class="valid ? 'text-muted' : 'text-danger'">
+          {{ valid ? '修改后自动保存，重启应用生效' : '本机名不能为空，端口需为 1–65535' }}
+        </p>
+        <span v-if="saved" class="text-xs text-success shrink-0">已自动保存</span>
+      </div>
     </section>
 
     <section class="mb-10">
@@ -145,14 +182,6 @@ async function onStartMinimized(enable: boolean) {
         </div>
       </div>
     </section>
-
-    <div class="flex items-center justify-between gap-4">
-      <p class="text-xs text-muted">修改本机名或端口需重启生效</p>
-      <button class="btn btn-primary" @click="onSave">
-        <Icon name="check" :size="16" />
-        保存配置
-      </button>
-    </div>
   </div>
 </template>
 

@@ -77,6 +77,20 @@ function onConfirmUpdate() {
   const tag = check.value?.latest?.tag
   if (tag) void applyUpdate(tag)
 }
+
+// 检查与更新合并为一个按钮：有可用更新时走更新确认，否则重新检查。
+const actionLabel = computed(() => {
+  if (updating.value) return '更新中…'
+  if (checking.value) return '检查中…'
+  if (canApply.value) return '立即更新'
+  return '检查更新'
+})
+
+function onAction() {
+  if (checking.value || updating.value) return
+  if (canApply.value) showConfirm.value = true
+  else void checkUpdate()
+}
 </script>
 
 <template>
@@ -95,7 +109,7 @@ function onConfirmUpdate() {
       </p>
     </section>
 
-    <!-- 软件更新：操作与状态同一卡片，下载中展示进度条 -->
+    <!-- 软件更新：单个按钮（检查/更新随状态切换），下载中展示进度条 -->
     <section class="mb-10">
       <h2 class="text-[15px] font-semibold text-text mb-4">软件更新</h2>
       <div class="rounded-xl bg-overlay-soft px-4 py-3 space-y-3 text-sm">
@@ -104,29 +118,27 @@ function onConfirmUpdate() {
             版本
             <span class="text-text font-mono ml-1">v{{ version || '—' }}</span>
           </span>
-          <div class="flex items-center gap-2">
-            <button
-              class="btn btn-ghost"
-              :disabled="checking || updating"
-              @click="checkUpdate()"
-            >
-              {{ checking ? '检查中…' : '检查更新' }}
-            </button>
-            <button v-if="canApply" class="btn btn-primary" :disabled="updating" @click="showConfirm = true">
-              立即更新
-            </button>
-            <button
-              v-if="check?.latest?.htmlUrl"
-              class="inline-flex items-center gap-1.5 text-accent hover:text-accent-hover"
-              @click="Browser.OpenURL(check.latest.htmlUrl)"
-            >
-              <Icon name="link" :size="14" />
-              发布说明
-            </button>
-          </div>
+          <button
+            class="btn"
+            :class="canApply ? 'btn-primary' : 'btn-ghost'"
+            :disabled="checking || updating"
+            @click="onAction"
+          >
+            {{ actionLabel }}
+          </button>
         </div>
 
-        <p class="text-muted" :class="{ 'text-accent': canApply }">{{ statusText }}</p>
+        <div class="flex items-center gap-3 flex-wrap">
+          <p class="text-muted" :class="{ 'text-accent': canApply }">{{ statusText }}</p>
+          <button
+            v-if="check?.latest?.htmlUrl"
+            class="inline-flex items-center gap-1.5 text-accent hover:text-accent-hover shrink-0"
+            @click="Browser.OpenURL(check.latest.htmlUrl)"
+          >
+            <Icon name="link" :size="14" />
+            发布说明
+          </button>
+        </div>
 
         <div v-if="progressVisible">
           <div class="h-1.5 rounded-full bg-line overflow-hidden">

@@ -19,7 +19,7 @@ const check = ref<CheckResult | null>(null)
 const checking = ref(false)
 const state = ref<State | null>(null)
 
-// 更新中 = 阶段不是 idle / error；期间禁用「检查更新」按钮。
+// 更新中 = 阶段不是 idle / error；期间禁用「关于」页的更新按钮。
 const updating = computed(() => {
   const p = state.value?.phase
   return !!p && p !== 'idle' && p !== 'error'
