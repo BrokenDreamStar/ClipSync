@@ -130,7 +130,10 @@ jobs:
           sudo apt-get install -y libgtk-3-dev libwebkit2gtk-4.1-dev wl-clipboard
 
       - name: 安装 Wails3 CLI
-        run: go install github.com/wailsapp/wails/v3/cmd/wails3@v3.0.0
+        # wails3 CLI 自身编译 internal/operatingsystem 时按构建标签选 Linux 后端：
+        # 默认要 gtk4 / webkitgtk-6.0（上面只装了 GTK3 / WebKitGTK-4.1 开发库），
+        # 带 gtk3 标签才与 apt 步骤装的库匹配（与下文应用构建的 EXTRA_TAGS=gtk3 同理）。
+        run: go install -tags gtk3 github.com/wailsapp/wails/v3/cmd/wails3@v3.0.0
 
       # appimagetool 不在 Ubuntu 24.04 apt 仓库：从 AppImageKit 持续构建桶下载。
       # 用 /releases/download/continuous/ 而非 /latest/download/，后者在某些代理

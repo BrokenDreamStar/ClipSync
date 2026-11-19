@@ -31,9 +31,12 @@ RUN curl -fsSL https://deb.nodesource.com/setup_20.x | bash - \
     && apt-get install -y --no-install-recommends nodejs \
     && rm -rf /var/lib/apt/lists/*
 
-# Wails CLI 版本与 CI 一致（v3：wails3 命令，构建走 Taskfile 体系）
+# Wails CLI 版本与 CI 一致（v3：wails3 命令，构建走 Taskfile 体系）。
+# 带 gtk3 标签：CLI 自身编译 internal/operatingsystem 时默认要 gtk4 /
+# webkitgtk-6.0（本镜像只装了 GTK3 / 4.1 开发库），标签切到 gtk+-3.0 +
+# webkit2gtk-4.1 才能编过（CI 的 build-linux 作业同理）。
 ARG WAILS_VERSION=v3.0.0
-RUN GOBIN=/usr/local/bin go install github.com/wailsapp/wails/v3/cmd/wails3@${WAILS_VERSION}
+RUN GOBIN=/usr/local/bin go install -tags gtk3 github.com/wailsapp/wails/v3/cmd/wails3@${WAILS_VERSION}
 
 # appimagetool 在镜像构建时装好并改名为普通命令名，运行时直接调。
 # 用 /releases/download/continuous/ 而不是 /latest/download/：后者在某些代理
