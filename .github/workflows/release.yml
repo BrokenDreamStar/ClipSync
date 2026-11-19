@@ -132,11 +132,15 @@ jobs:
       - name: 安装 Wails3 CLI
         run: go install github.com/wailsapp/wails/v3/cmd/wails3@v3.0.0
 
+      # appimagetool 不在 Ubuntu 24.04 apt 仓库：从 AppImageKit 持续构建桶下载。
+      # 用 /releases/download/continuous/ 而非 /latest/download/，后者在某些代理
+      # 环境会被改写到不存在的 S3 对象、返回 404。
       - name: 安装 appimagetool
         run: |
           sudo curl -fsSL -o /usr/local/bin/appimagetool \
             https://github.com/AppImage/AppImageKit/releases/download/continuous/appimagetool-x86_64.AppImage
           sudo chmod 755 /usr/local/bin/appimagetool
+          appimagetool --appimage-version || true
 
       - name: 构建 Linux amd64
         run: wails3 task linux:build ARCH=amd64 EXTRA_TAGS=gtk3
