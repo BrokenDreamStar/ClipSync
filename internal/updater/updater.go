@@ -296,24 +296,40 @@ func runApply(m *Manifest, asset *Asset) error {
 	return nil
 }
 
-// tempAssetPath 返回下载暂存路径（~/.clipsync/updates/ 下）。
-// 失败后目录里不该留几十 MB 的半成品，用 .part 后缀便于启动时清理。
-func tempAssetPath(name string) string {
+// updateDir 返回更新暂存目录（默认 ~/.clipsync/updates）。
+// CLIPSYNC_UPDATE_DIR 可覆盖（测试隔离与自定义位置）。
+func updateDir() string {
+	if d := strings.TrimSpace(os.Getenv("CLIPSYNC_UPDATE_DIR")); d != "" {
+		return d
+	}
 	home, err := os.UserHomeDir()
 	if err != nil {
-		return filepath.Join(os.TempDir(), name+".part")
+		return os.TempDir()
 	}
-	return filepath.Join(home, ".clipsync", "updates", name+".part")
+	return filepath.Join(home, ".clipsync", "updates")
+}
+
+// tempAssetPath 返回下载暂存路径（updateDir 下）。
+// 失败后目录里不该留几十 MB 的半成品，用 .part 后缀便于启动时清理。
+func tempAssetPath(name string) string {
+	return filepath.Join(updateDir(), name+".part")
 }
 
 // downloadAsset 把产物下载到暂存文件，边写边算 sha256 与进度。
 func downloadAsset(asset *Asset, tag string) (string, error) {
 	url := asset.DownloadURL(tag)
-	if m := mirrorBase(); m != "" {
+	mirror := mirrorBase()
+	if mirror != "" {
 		// ghproxy 约定：镜像地址前缀拼接原始 URL；镜像由用户显式配置，不做出域校验。
-		url = m + url
+		url = mirror + url
 	}
+	return downloadTo(url, asset, tag, mirror == "")
+}
 
+// downloadTo 从 url 下载产物到暂存文件。verifyOrigin 为 true 时要求最终跳转
+// 地址仍落在 GitHub 域名内（直连路径；镜像由用户显式配置、不做出域校验）。
+// 独立成函数是为了让单测能用 httptest 走完整下载路径（见 TestDownloadTo）。
+func downloadTo(url string, asset *Asset, tag string, verifyOrigin bool) (string, error) {
 	client := &http.Client{Timeout: downloadTimeout}
 	req, err := http.NewRequest(http.MethodGet, url, nil)
 	if err != nil {
@@ -329,7 +345,7 @@ func downloadAsset(asset *Asset, tag string) (string, error) {
 		return "", fmt.Errorf("下载失败：HTTP %d", resp.StatusCode)
 	}
 	// 直连（未配置镜像）时最终跳转地址必须仍落在 GitHub 域名内。
-	if mirrorBase() == "" && !isTrustedAssetURL(resp.Request.URL.String()) {
+	if verifyOrigin && !isTrustedAssetURL(resp.Request.URL.String()) {
 		return "", errors.New("下载地址不在允许的域名内，已中止")
 	}
 
@@ -377,10 +393,12 @@ func downloadAsset(asset *Asset, tag string) (string, error) {
 	st.Received = received
 	setState(st)
 
-	if err := f.Close(); err != nil {
+	// 先 Sync 落盘再 Close：Close 之后再 Sync 会报 "file already closed"
+	//（v0.1.1 之前这里写反了，导致每次下载完成都失败、自更新从未走通）。
+	if err := f.Sync(); err != nil {
 		return "", fmt.Errorf("写入暂存文件失败：%w", err)
 	}
-	if err := f.Sync(); err != nil {
+	if err := f.Close(); err != nil {
 		return "", fmt.Errorf("写入暂存文件失败：%w", err)
 	}
 	return dst, nil
@@ -433,11 +451,7 @@ func CleanupStaleFiles() {
 	platformCleanup()
 
 	// 下载暂存目录里可能留着失败更新的 .part 文件。
-	home, err := os.UserHomeDir()
-	if err != nil {
-		return
-	}
-	dir := filepath.Join(home, ".clipsync", "updates")
+	dir := updateDir()
 	entries, err := os.ReadDir(dir)
 	if err != nil {
 		return

@@ -1,8 +1,11 @@
 package updater
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"strings"
@@ -275,6 +278,59 @@ func TestParseCISample(t *testing.T) {
 	}
 	if len(m.Assets) != 5 || m.AssetFor("windows-arm64") == nil || m.AssetFor("linux-aarch64") == nil {
 		t.Fatalf("解析结果不对：%+v", m)
+	}
+}
+
+// TestDownloadTo 回归测试：完整下载路径必须能正常结束并产出可校验的暂存文件。
+// 背景：v0.1.1 之前 downloadTo 把 f.Sync() 写在 f.Close() 之后，每次下载完成
+// 都会报 "file already closed"，自更新从未走通过一次（真实环境实测触发）。
+// payload 以 ELF 魔数开头，让 verifyDownload 的完整校验链（大小 + sha256 +
+// 平台文件头）一起被覆盖。
+func TestDownloadTo(t *testing.T) {
+	t.Setenv("CLIPSYNC_UPDATE_DIR", t.TempDir())
+	payload := append([]byte("\x7fELF"), bytes.Repeat([]byte("clipsync"), 4096)...)
+	asset := &Asset{
+		Platform: "linux-x86_64",
+		Name:     "ClipSync-0.0.5-linux-x86_64.AppImage",
+		Size:     int64(len(payload)),
+		SHA256:   hexSum(payload),
+	}
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/octet-stream")
+		_, _ = w.Write(payload)
+	}))
+	defer srv.Close()
+
+	path, err := downloadTo(srv.URL, asset, "v0.0.5", false)
+	if err != nil {
+		t.Fatalf("downloadTo: %v", err)
+	}
+	got, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("读取暂存文件: %v", err)
+	}
+	if !bytes.Equal(got, payload) {
+		t.Fatal("暂存文件内容与下载内容不一致")
+	}
+	if err := verifyDownload(path, asset); err != nil {
+		t.Fatalf("下载后校验失败: %v", err)
+	}
+}
+
+// TestDownloadToBadStatus 非 200 响应直接失败，不产生暂存文件。
+func TestDownloadToBadStatus(t *testing.T) {
+	t.Setenv("CLIPSYNC_UPDATE_DIR", t.TempDir())
+	asset := &Asset{Name: "ClipSync-0.0.5-linux-x86_64.AppImage", Size: 1, SHA256: hexSum([]byte("x"))}
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		http.Error(w, "nope", http.StatusNotFound)
+	}))
+	defer srv.Close()
+
+	if _, err := downloadTo(srv.URL, asset, "v0.0.5", false); err == nil {
+		t.Fatal("HTTP 404 应返回错误")
+	}
+	if _, err := os.Stat(tempAssetPath(asset.Name)); !os.IsNotExist(err) {
+		t.Fatal("失败时不应留下暂存文件")
 	}
 }
 
