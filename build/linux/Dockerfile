@@ -4,7 +4,7 @@
 # 目标架构由 --platform 决定（linux/amd64 或 linux/arm64，默认 amd64）。
 # Apple Silicon 上 amd64 容器依赖 Docker Desktop / OrbStack 的 Rosetta 转译
 # （纯 QEMU 全模拟会慢到不可用）；arm64 容器则原生运行，
-# 本地即可产出 aarch64 AppImage。用法：sh build/linux/build_in_docker.sh [amd64|arm64]
+# 本地即可产出 arm64 AppImage。用法：sh build/linux/build_in_docker.sh [amd64|arm64]
 ARG TARGETPLATFORM=linux/amd64
 FROM --platform=${TARGETPLATFORM} ubuntu:24.04
 

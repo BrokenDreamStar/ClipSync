@@ -23,7 +23,7 @@ cd frontend && npx vue-tsc --noEmit  # 仅类型检查
 - 纯浏览器预览 UI（无需 Wails）：`cd frontend && npm run dev` 后打开 `http://localhost:5173/preview.html`（mock 入口 `main.preview.ts`，通过 `@wailsio/runtime` 的官方 `setTransport` 钩子按方法名路由 mock 数据）。
 - Windows 构建是纯 syscall 交叉编译（`CGO_ENABLED=0`），**不再需要 mingw-w64**；图标/版本资源由 `build/windows/Taskfile.yml` 的 `generate:syso` 从 `build/windows/icon.ico` + `info.json` 生成。
 - Linux 构建需 GTK3 / WebKitGTK 4.1 开发库（`sudo apt install libgtk-3-dev libwebkit2gtk-4.1-dev`），且必须带 `EXTRA_TAGS=gtk3`（v3 以该标签选 GTK3/WebKitGTK-4.1 后端，默认后端是 GTK4/WebKitGTK-6.0；v2 时代的 `webkit2_41` 标签已废弃）。AppImage：`wails3 task linux:package`。Linux 只能在 Linux 环境（或 CI）上构建，macOS 无法交叉编译。
-- **macOS 上构建 Linux 版走 Docker**：`sh build/linux/build_in_docker.sh [amd64|arm64]`（ubuntu:24.04 镜像，与 CI 同构，默认 amd64）。amd64 容器在 Apple Silicon 上依赖 Docker Desktop/OrbStack 的 Rosetta 转译；**arm64 容器原生运行**，Apple Silicon 上本地即可产出 aarch64 AppImage（Intel Mac 上 arm64 走 QEMU 全模拟，慢但可用）。脚本串起 4 步：`wails3 task linux:build` → `go vet` → `go test` → `build_appimage.sh`。AppImage 阶段在 **amd64 转译容器**里会自动跳过（Rosetta 不翻译 `appimagetool` 这类 type-1 非 PIE ELF），由 CI/Linux runner 接管；arm64 原生容器无此问题。`node_modules` / `go-build` 按架构分 named volume 缓存（esbuild / Go 编译缓存都架构相关）、`gomod` 跨架构共用，不会污染宿主机依赖。
+- **macOS 上构建 Linux 版走 Docker**：`sh build/linux/build_in_docker.sh [amd64|arm64]`（ubuntu:24.04 镜像，与 CI 同构，默认 amd64）。amd64 容器在 Apple Silicon 上依赖 Docker Desktop/OrbStack 的 Rosetta 转译；**arm64 容器原生运行**，Apple Silicon 上本地即可产出 arm64 AppImage（Intel Mac 上 arm64 走 QEMU 全模拟，慢但可用）。脚本串起 4 步：`wails3 task linux:build` → `go vet` → `go test` → `build_appimage.sh`。AppImage 阶段在 **amd64 转译容器**里会自动跳过（Rosetta 不翻译 `appimagetool` 这类 type-1 非 PIE ELF），由 CI/Linux runner 接管；arm64 原生容器无此问题。`node_modules` / `go-build` 按架构分 named volume 缓存（esbuild / Go 编译缓存都架构相关）、`gomod` 跨架构共用，不会污染宿主机依赖。
 
 ## 架构与层次边界
 
@@ -43,9 +43,10 @@ cd frontend && npx vue-tsc --noEmit  # 仅类型检查
 
 - **跨平台桩**：在某个 `*_darwin.go` / `*_windows.go` 中新增平台函数时，必须同步在其他平台的 `_other.go` / `_windows.go` 补空实现，否则交叉编译失败（v0.0.3 曾因 `SetAccessoryActivationPolicy` 缺 Windows 实现编译失败）。
 - **版本号需两处同步**：`build/config.yml` 的 `info.version`（CI 从这里解析，`wails3 update build-assets` 再渲染进 Info.plist / Windows syso；应用运行时也从 `main.go` 内嵌的同名文件解析版本号供更新器比较——`AboutView.vue` 不再硬编码版本，改这个 yaml 就够了）与 `CHANGELOG.md`。注意 `go:embed` 后 `build/config.yml` 同时是 Go 源的一部分，改它要重新编译才生效。
+- **Windows 应用名取 `info.description`**：`build/config.yml` 的 `description` 会渲染成 Windows EXE 版本资源的 `FileDescription`，任务管理器、开始菜单搜索、防火墙提示直接把它当应用名显示，所以必须保持 `ClipSync`；功能描述放 `comments`。改完跑 `wails3 task common:update:build-assets` 同步 `build/windows/info.json`（渲染产物但需提交，CI 不重新生成）。
 - **主题**：颜色全部走 `frontend/src/style.css` 的 CSS 变量（`:root, html.dark` 深色为默认，`html.light` 覆盖；RGB 三元组供 Tailwind `<alpha-value>` 用）。`html` 上的 `dark`/`light` class 由 `index.html` 内联脚本（首帧防闪烁）和 `useTheme`（运行时）写入，二者都要保持一致。写组件时用 Tailwind 主题 token（如 `text-muted`、`bg-surface`），不要硬编码颜色。
 - 运行时配置在 `~/.clipsync/config.json`；Windows 日志写 `%USERPROFILE%\.clipsync\app.log`。
-- **窗口无边框**：Windows / Linux 走 `WebviewWindowOptions.Frameless`（`main.go` 里按 `runtime.GOOS` 条件开启），无原生标题栏；拖窗口靠前端 `Sidebar` 的 `.drag-region`（CSS `--wails-draggable`，v3 沿用 v2 约定）。macOS 用 `application.MacTitleBarHidden`（保留红绿灯），别把 macOS 也改成 Frameless。
+- **窗口标题栏**：Windows 保留系统原生标题栏（`Frameless` 不启用，与 v0.0.3 一致；`Windows.Theme` 让标题栏跟随深浅色）。Linux 走 `WebviewWindowOptions.Frameless`，无原生标题栏，拖窗口靠前端 `Sidebar` 的 `.drag-region`（CSS `--wails-draggable`，v3 沿用 v2 约定）。macOS 用 `application.MacTitleBarHidden`（保留红绿灯），别把 macOS 也改成 Frameless；前端 `TitleBar.vue` 只在 macOS 渲染，Windows/Linux 不要恢复自绘标题栏。
 - **"关闭即隐藏"**：v3 无 v2 的 `HideWindowOnClose` 选项，由 `main.go` 里 `window.RegisterHook(events.Common.WindowClosing, ...)` + `event.Cancel()` + `window.Hide()` 实现；托盘"退出"先置 `svc.quitting` 标志再 `wails.Quit()`，钩子看到标志后放行。改这两个行为时必须保持标志位语义。
 - **Linux 托盘/剪贴板限制**：托盘走 DBus StatusNotifierItem，原生 GNOME 需 AppIndicator 扩展；剪贴板优先走 X11（Wayland 会话下经 XWayland），纯 Wayland 会话回退 wl-clipboard——`wl-paste --watch` 是常驻子进程，`main.go` 的 `OnShutdown` 回调里必须调 `clipboard.Shutdown()` 清理；`wl-copy` 会 fork 常驻进程持有内容，给它接 stdout/stderr 管道会让 `cmd.Wait()` 卡到超时（见 `backend_wayland_linux.go` 的注释）。AppImage 内置这两个工具（`build_appimage.sh` + AppRun 的 PATH 注入）。
 - **icns 全尺寸**：`wails3 generate icons` 生成的 icns 缺 @1x 小尺寸（16/32/64），Finder 低 DPI 视图会退化成占位图标；`build/darwin/build_icns.sh` 用 `build/appicon.png` 重打 @1x+@2x 全尺寸并覆盖 `.app` 内的 `icons.icns`（CI 在 package 之后执行；本地发 .app 也要手动跑一次）。
@@ -55,6 +56,6 @@ cd frontend && npx vue-tsc --noEmit  # 仅类型检查
 ## 提交与发布约定
 
 - 提交信息：`feat:` / `fix:` / `style:` / `ci:` / `chore:` 前缀 + 中文描述。
-- 日常开发在 `dev` 分支；push 到 `main` 触发 `.github/workflows/release.yml` 构建五平台产物并发 release：macOS DMG（universal）、Windows EXE（amd64 + arm64，同一 amd64 runner 交叉编译）、Linux AppImage（x86_64 + aarch64，arm64 走 GitHub 公开仓库免费的 `ubuntu-24.04-arm` 原生 runner）。
+- 日常开发在 `dev` 分支；push 到 `main` 触发 `.github/workflows/release.yml` 构建五平台产物并发 release：macOS DMG（universal）、Windows EXE（amd64 + arm64，同一 amd64 runner 交叉编译）、Linux AppImage（amd64 + arm64，arm64 走 GitHub 公开仓库免费的 `ubuntu-24.04-arm` 原生 runner）。
 - release 任务会在 Release 资产里附带 `latest.json` 更新清单（应用内更新器读取它；产物名必须保持 `ClipSync-<版本>-<平台键><扩展名>` 命名，`internal/updater/manifest.go` 按此校验，两边改动需同步 `updater_test.go` 里的 TestParseCISample）。
 - 用户可见的变更需在 `CHANGELOG.md` 的 `[Unreleased]` 下追加中文条目（Keep a Changelog 格式）。

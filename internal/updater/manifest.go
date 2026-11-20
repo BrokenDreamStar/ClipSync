@@ -26,8 +26,8 @@ var knownPlatforms = map[string]string{
 	"macos-universal": ".dmg",
 	"windows-amd64":   ".exe",
 	"windows-arm64":   ".exe",
-	"linux-x86_64":    ".AppImage",
-	"linux-aarch64":   ".AppImage",
+	"linux-amd64":     ".AppImage",
+	"linux-arm64":     ".AppImage",
 }
 
 // Asset 是 latest.json 里单个平台的产物条目。
@@ -64,9 +64,9 @@ func PlatformKey() (string, error) {
 	case "linux":
 		switch runtime.GOARCH {
 		case "amd64":
-			return "linux-x86_64", nil
+			return "linux-amd64", nil
 		case "arm64":
-			return "linux-aarch64", nil
+			return "linux-arm64", nil
 		}
 	}
 	return "", fmt.Errorf("当前平台（%s/%s）没有对应的发布包", runtime.GOOS, runtime.GOARCH)

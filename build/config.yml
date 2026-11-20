@@ -8,10 +8,12 @@ info:
   companyName: "BrokenDream_Star"
   productName: "ClipSync"
   productIdentifier: "com.clipsync.app"
-  description: "局域网剪贴板同步工具"
+  # Windows 的 FileDescription（任务管理器 / 开始菜单搜索 / 防火墙弹窗显示的
+  # "应用名"）会取这里，必须是产品名本身；功能描述放在 comments 里。
+  description: "ClipSync"
   copyright: "Copyright (c) BrokenDream_Star"
   comments: "局域网 macOS / Windows / Linux 剪贴板同步工具"
-  version: "0.1.4"
+  version: "0.1.5"
 
 # Dev 模式：Go 侧重编译 + Vite 热重载（前端目录整体排除，走 dev:frontend 任务）。
 dev_mode:

@@ -33,7 +33,7 @@ open build/bin/ClipSync.app
 # Windows
 build\bin\ClipSync.exe
 
-# Linux (AppImage；按 CPU 架构选 x86_64 / aarch64，也可直接运行裸二进制)
+# Linux (AppImage；按 CPU 架构选 amd64 / arm64，也可直接运行裸二进制)
 chmod +x ClipSync-*-linux-*.AppImage
 ./ClipSync-*-linux-*.AppImage
 ```

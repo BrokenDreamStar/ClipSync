@@ -5,6 +5,18 @@
 
 ## [Unreleased]
 
+## [0.1.5] - 2026-11-20
+
+### 变更
+
+- **统一 Linux 与 Windows 的架构命名**：Linux 产物与更新清单平台键从 `linux-x86_64` / `linux-aarch64` 改为与 Windows 一致的 `linux-amd64` / `linux-arm64`，AppImage 文件名、`latest.json`、更新器平台识别三处同步。0.1.4 及更早的 Linux 版本仍按旧键查找更新包，升级到本版本需手动下载一次。
+
+### 修复
+
+- **Windows 版窗口丢失原生标题栏**：0.0.4 起 Windows 与 Linux 一起改成了无边框窗口，标题栏连同最小化 / 最大化 / 关闭按钮一起消失，只能从托盘操作，与 0.0.3 的窗口形态不一致。Windows 恢复系统原生标题栏（`Frameless` 不再对 Windows 生效），标题栏颜色仍随深浅色主题切换；Linux 保持 0.0.4 起的无边框观感不变。
+- **Windows 应用名显示为「局域网剪贴板同步工具」**：Windows 的任务管理器、开始菜单搜索和防火墙提示读取的是 EXE 版本资源里的 `FileDescription`，而 `build/config.yml` 的 `description` 一直填的是功能描述。改为 `ClipSync`（功能描述保留在 `comments`），并同步重新生成 `build/windows/info.json` 与 EXE 版本资源。
+- **更新清单缺少当前平台条目时检查更新会崩溃**：清单可以只包含部分架构（例如某次发布漏掉某个平台），此前取产物信息时未判空，直接解引用会导致崩溃；现在正常返回「没有适用于当前平台的安装包」。
+
 ## [0.1.4] - 2026-11-20
 
 ### 变更

@@ -161,7 +161,8 @@ jobs:
         run: go install -tags gtk3 github.com/wailsapp/wails/v3/cmd/wails3@v3.0.0
 
       # appimagetool 不在 Ubuntu 24.04 apt 仓库：从 AppImageKit 持续构建桶下载，
-      # 架构跟随矩阵（x86_64 / aarch64）。用 /releases/download/continuous/ 而非
+      # appimagetool 的架构叫法跟随矩阵（x86_64 / aarch64），与应用产物名
+      # （linux-amd64 / linux-arm64）无关。用 /releases/download/continuous/ 而非
       # /latest/download/，后者在某些代理环境会被改写到不存在的 S3 对象、返回 404。
       - name: 安装 appimagetool
         run: |
@@ -170,7 +171,7 @@ jobs:
           sudo chmod 755 /usr/local/bin/appimagetool
           appimagetool --appimage-version || true
 
-      # build_appimage.sh 用 uname -m 探测架构，产物名自动带 aarch64 后缀。
+      # build_appimage.sh 用 uname -m 探测架构，产物名自动带 amd64 / arm64 后缀。
       - name: 构建 Linux ${{ matrix.arch }}
         run: wails3 task linux:build ARCH=${{ matrix.arch }} EXTRA_TAGS=gtk3
 
@@ -233,8 +234,8 @@ jobs:
           collect macos-universal 'artifacts/ClipSync-macos/*.dmg'
           collect windows-amd64  'artifacts/ClipSync-windows/*windows-amd64.exe'
           collect windows-arm64  'artifacts/ClipSync-windows/*windows-arm64.exe'
-          collect linux-x86_64   'artifacts/ClipSync-linux-amd64/*.AppImage'
-          collect linux-aarch64  'artifacts/ClipSync-linux-arm64/*.AppImage'
+          collect linux-amd64    'artifacts/ClipSync-linux-amd64/*.AppImage'
+          collect linux-arm64    'artifacts/ClipSync-linux-arm64/*.AppImage'
           jq -n --arg t "v${VERSION}" --arg v "${VERSION}" \
             --arg ts "$(date -u +%Y-%m-%dT%H:%M:%SZ)" --argjson a "$assets" \
             '{schema: 1, tag: $t, version: $v, publishedAt: $ts, assets: $a}' \

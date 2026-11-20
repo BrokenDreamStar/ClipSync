@@ -70,8 +70,8 @@ func manifestFixture() Manifest {
 			{Platform: "macos-universal", Name: "ClipSync-0.0.5-macos-universal.dmg", Size: 100, SHA256: sha},
 			{Platform: "windows-amd64", Name: "ClipSync-0.0.5-windows-amd64.exe", Size: 100, SHA256: sha},
 			{Platform: "windows-arm64", Name: "ClipSync-0.0.5-windows-arm64.exe", Size: 100, SHA256: sha},
-			{Platform: "linux-x86_64", Name: "ClipSync-0.0.5-linux-x86_64.AppImage", Size: 100, SHA256: sha},
-			{Platform: "linux-aarch64", Name: "ClipSync-0.0.5-linux-aarch64.AppImage", Size: 100, SHA256: sha},
+			{Platform: "linux-amd64", Name: "ClipSync-0.0.5-linux-amd64.AppImage", Size: 100, SHA256: sha},
+			{Platform: "linux-arm64", Name: "ClipSync-0.0.5-linux-arm64.AppImage", Size: 100, SHA256: sha},
 		},
 	}
 }
@@ -92,8 +92,8 @@ func TestParseManifest(t *testing.T) {
 	if a := parsed.AssetFor("windows-arm64"); a == nil || a.Name != "ClipSync-0.0.5-windows-arm64.exe" {
 		t.Fatalf("AssetFor(windows-arm64) 结果不对")
 	}
-	if a := parsed.AssetFor("linux-aarch64"); a == nil || a.Name != "ClipSync-0.0.5-linux-aarch64.AppImage" {
-		t.Fatalf("AssetFor(linux-aarch64) 结果不对")
+	if a := parsed.AssetFor("linux-arm64"); a == nil || a.Name != "ClipSync-0.0.5-linux-arm64.AppImage" {
+		t.Fatalf("AssetFor(linux-arm64) 结果不对")
 	}
 	if a := parsed.AssetFor("windows-386"); a != nil {
 		t.Fatalf("清单里没有 windows-386，应返回 nil")
@@ -156,8 +156,8 @@ func TestExpectedAssetName(t *testing.T) {
 		"macos-universal": "ClipSync-0.0.5-macos-universal.dmg",
 		"windows-amd64":   "ClipSync-0.0.5-windows-amd64.exe",
 		"windows-arm64":   "ClipSync-0.0.5-windows-arm64.exe",
-		"linux-x86_64":    "ClipSync-0.0.5-linux-x86_64.AppImage",
-		"linux-aarch64":   "ClipSync-0.0.5-linux-aarch64.AppImage",
+		"linux-amd64":     "ClipSync-0.0.5-linux-amd64.AppImage",
+		"linux-arm64":     "ClipSync-0.0.5-linux-arm64.AppImage",
 	}
 	for platform, want := range cases {
 		if got := expectedAssetName("0.0.5", platform); got != want {
@@ -268,15 +268,15 @@ func TestParseCISample(t *testing.T) {
     {"platform":"macos-universal","name":"ClipSync-0.0.5-macos-universal.dmg","size":11088,"sha256":"66a917f2cdec9367d84093dccadfa327281573c2a8f1eeec2add79c57c754032"},
     {"platform":"windows-amd64","name":"ClipSync-0.0.5-windows-amd64.exe","size":11088,"sha256":"66a917f2cdec9367d84093dccadfa327281573c2a8f1eeec2add79c57c754032"},
     {"platform":"windows-arm64","name":"ClipSync-0.0.5-windows-arm64.exe","size":11088,"sha256":"66a917f2cdec9367d84093dccadfa327281573c2a8f1eeec2add79c57c754032"},
-    {"platform":"linux-x86_64","name":"ClipSync-0.0.5-linux-x86_64.AppImage","size":11088,"sha256":"66a917f2cdec9367d84093dccadfa327281573c2a8f1eeec2add79c57c754032"},
-    {"platform":"linux-aarch64","name":"ClipSync-0.0.5-linux-aarch64.AppImage","size":11088,"sha256":"66a917f2cdec9367d84093dccadfa327281573c2a8f1eeec2add79c57c754032"}
+    {"platform":"linux-amd64","name":"ClipSync-0.0.5-linux-amd64.AppImage","size":11088,"sha256":"66a917f2cdec9367d84093dccadfa327281573c2a8f1eeec2add79c57c754032"},
+    {"platform":"linux-arm64","name":"ClipSync-0.0.5-linux-arm64.AppImage","size":11088,"sha256":"66a917f2cdec9367d84093dccadfa327281573c2a8f1eeec2add79c57c754032"}
   ]
 }`
 	m, err := ParseManifest([]byte(sample))
 	if err != nil {
 		t.Fatalf("CI 生成的清单应能被解析：%v", err)
 	}
-	if len(m.Assets) != 5 || m.AssetFor("windows-arm64") == nil || m.AssetFor("linux-aarch64") == nil {
+	if len(m.Assets) != 5 || m.AssetFor("windows-arm64") == nil || m.AssetFor("linux-arm64") == nil {
 		t.Fatalf("解析结果不对：%+v", m)
 	}
 }
@@ -290,8 +290,8 @@ func TestDownloadTo(t *testing.T) {
 	t.Setenv("CLIPSYNC_UPDATE_DIR", t.TempDir())
 	payload := append([]byte("\x7fELF"), bytes.Repeat([]byte("clipsync"), 4096)...)
 	asset := &Asset{
-		Platform: "linux-x86_64",
-		Name:     "ClipSync-0.0.5-linux-x86_64.AppImage",
+		Platform: "linux-amd64",
+		Name:     "ClipSync-0.0.5-linux-amd64.AppImage",
 		Size:     int64(len(payload)),
 		SHA256:   hexSum(payload),
 	}
@@ -320,7 +320,7 @@ func TestDownloadTo(t *testing.T) {
 // TestDownloadToBadStatus 非 200 响应直接失败，不产生暂存文件。
 func TestDownloadToBadStatus(t *testing.T) {
 	t.Setenv("CLIPSYNC_UPDATE_DIR", t.TempDir())
-	asset := &Asset{Name: "ClipSync-0.0.5-linux-x86_64.AppImage", Size: 1, SHA256: hexSum([]byte("x"))}
+	asset := &Asset{Name: "ClipSync-0.0.5-linux-amd64.AppImage", Size: 1, SHA256: hexSum([]byte("x"))}
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "nope", http.StatusNotFound)
 	}))

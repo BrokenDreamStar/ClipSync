@@ -17,9 +17,11 @@ if [ -z "$VERSION" ]; then
 fi
 
 ARCH="${APPIMAGE_ARCH_OVERRIDE:-$(uname -m)}"
+# 产物名与 Windows 一致用 amd64 / arm64；uname -m 与 appimagetool 自己的
+# x86_64 / aarch64 叫法只在判断入口出现，映射一次后不再出现。
 case "$ARCH" in
-  x86_64) APPIMAGE_ARCH=x86_64 ;;
-  aarch64 | arm64) APPIMAGE_ARCH=aarch64 ;;
+  amd64 | x86_64) APPIMAGE_ARCH=amd64 ;;
+  arm64 | aarch64) APPIMAGE_ARCH=arm64 ;;
   *)
     echo "不支持的架构: $ARCH" >&2
     exit 1

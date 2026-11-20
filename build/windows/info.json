@@ -1,12 +1,12 @@
 {
 	"fixed": {
-		"file_version": "0.1.4"
+		"file_version": "0.1.5"
 	},
 	"info": {
 		"0409": {
-			"ProductVersion": "0.1.4",
+			"ProductVersion": "0.1.5",
 			"CompanyName": "BrokenDream_Star",
-			"FileDescription": "局域网剪贴板同步工具",
+			"FileDescription": "ClipSync",
 			"LegalCopyright": "Copyright (c) BrokenDream_Star",
 			"ProductName": "ClipSync",
 			"Comments": "局域网 macOS / Windows / Linux 剪贴板同步工具"

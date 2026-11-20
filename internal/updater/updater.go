@@ -199,8 +199,12 @@ func Check(force bool) CheckResult {
 		Version:     m.Version,
 		PublishedAt: m.PublishedAt,
 		HTMLURL:     ReleaseURL(m.Tag),
-		AssetName:   asset.Name,
-		AssetSize:   asset.Size,
+	}
+	// 清单可以缺当前平台的条目（例如某次发布漏了该架构），此时没有下载目标；
+	// AssetFor 返回 nil，不能直接取字段。
+	if asset != nil {
+		result.Latest.AssetName = asset.Name
+		result.Latest.AssetSize = asset.Size
 	}
 	result.HasUpdate = IsNewerRelease(m.Version, AppVersion)
 	if result.HasUpdate && asset == nil {

@@ -6,7 +6,7 @@
 #
 # 前置：Docker 已安装并启动。Apple Silicon 上用 Docker Desktop / OrbStack：
 # amd64 容器默认走 Rosetta 转译（纯 QEMU 模拟会非常慢）；arm64 容器原生
-# 运行，无需转译，Apple Silicon 上本地即可产出 aarch64 AppImage。
+# 运行，无需转译，Apple Silicon 上本地即可产出 arm64 AppImage。
 # Intel Mac 上构建 arm64 需 QEMU 全模拟，慢但可用。
 #
 # 流程：wails3 task linux:build (<arch> + gtk3) → go vet → go test
@@ -19,7 +19,7 @@
 # 注意：AppImage 打包依赖 appimagetool。amd64 路径上它是 type-1 旧格式 ELF，
 # Docker Desktop on Apple Silicon 的 Rosetta 只翻译 PIE 二进制，exec 会报
 # "Exec format error"，该场景 AppImage 阶段自动跳过、由 CI/Linux runner 完成；
-# arm64 容器原生运行时无此问题，可直接打出 aarch64 AppImage。
+# arm64 容器原生运行时无此问题，可直接打出 arm64 AppImage。
 set -eu
 cd "$(dirname "$0")/../.."
 

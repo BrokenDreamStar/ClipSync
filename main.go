@@ -141,10 +141,13 @@ func main() {
 		Title:  "ClipSync",
 		Width:  880,
 		Height: 560,
-		// Windows / Linux 去掉系统原生标题栏，与 macOS 的 TitleBarHidden 观感一致；
-		// 窗口拖动走前端侧栏的拖拽区（--wails-draggable，v3 沿用同一约定）。
+		// Windows 保留系统原生标题栏（与 v0.0.3 一致）：Frameless 会让窗口
+		// 连最小化/最大化/关闭按钮一起消失，只能从托盘操作。前端 TitleBar
+		// 仅在 macOS 渲染，Windows 直接用系统标题栏，不重复。
+		// Linux 仍走 Frameless（0.0.4 起的同款观感），拖动走前端侧栏的拖拽区
+		// （--wails-draggable，v3 沿用同一约定）。
 		// macOS 不能用 Frameless——它需要保留原生红绿灯，仍走 Mac.TitleBar。
-		Frameless: runtime.GOOS == "windows" || runtime.GOOS == "linux",
+		Frameless: runtime.GOOS == "linux",
 		// 「启动时最小化到任务栏」：窗口以隐藏方式创建，只保留托盘图标。
 		Hidden: cfg.StartMinimized,
 		// 原生窗口背景色与前端 --c-surface 一致，避免浅色主题下露出深色底。
