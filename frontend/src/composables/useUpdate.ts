@@ -69,15 +69,24 @@ async function initUpdate(): Promise<void> {
 }
 
 // checkUpdate 拉取一次检查结果（后端缓存 60 秒）。
-// silent=true（启动自动检查）只在新版本可用时提示。
+// silent=true（启动自动检查）只在新版本可用时轻提示；
+// 手动检查（「关于」页点击按钮）无论结果如何都给 toast 反馈——
+// 后端检查失败不以错误返回（原因在 result.error 里），不 toast 就只能靠状态行无声变化。
 async function checkUpdate(silent = false): Promise<void> {
   if (checking.value || updating.value) return
   checking.value = true
   try {
     const [result] = await CheckUpdate()
     check.value = result
-    if (silent && result.hasUpdate && result.latest) {
-      useToast().push(`发现新版本 ${result.latest.tag}，可在「关于」页更新`, 'info', 6000)
+    if (result.hasUpdate && result.latest && !result.error) {
+      useToast().push(
+        `发现新版本 ${result.latest.tag}，可在「关于」页更新`,
+        silent ? 'info' : 'success',
+        6000,
+      )
+    } else if (!silent) {
+      if (result.error) useToast().err(`检查更新失败：${result.error}`)
+      else useToast().ok('已是最新版本')
     }
   } catch {
     check.value = null

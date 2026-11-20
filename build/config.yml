@@ -11,7 +11,7 @@ info:
   description: "局域网剪贴板同步工具"
   copyright: "Copyright (c) BrokenDream_Star"
   comments: "局域网 macOS / Windows / Linux 剪贴板同步工具"
-  version: "0.1.3"
+  version: "0.1.4"
 
 # Dev 模式：Go 侧重编译 + Vite 热重载（前端目录整体排除，走 dev:frontend 任务）。
 dev_mode:
